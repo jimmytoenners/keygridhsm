@@ -1,0 +1,446 @@
+# Default values for keygrid-hsm
+# This is a YAML-formatted file.
+
+# Global settings
+global:
+  # Image registry (can be overridden for air-gapped environments)
+  imageRegistry: ""
+  # Image pull secrets for private registries
+  imagePullSecrets: []
+  # Storage class for persistent volumes
+  storageClass: ""
+
+# Image configuration
+image:
+  registry: docker.io
+  repository: keygrid-hsm
+  tag: "1.0.0"
+  pullPolicy: IfNotPresent
+  # Overrides the image tag whose default is the chart appVersion.
+  # tag: ""
+
+# Image pull secrets
+imagePullSecrets: []
+
+# Override default names
+nameOverride: ""
+fullnameOverride: ""
+
+# Deployment configuration
+replicaCount: 3
+
+# Deployment strategy
+strategy:
+  type: RollingUpdate
+  rollingUpdate:
+    maxSurge: 1
+    maxUnavailable: 1
+
+# Service account configuration
+serviceAccount:
+  # Specifies whether a service account should be created
+  create: true
+  # Annotations to add to the service account
+  annotations: {}
+  # The name of the service account to use.
+  # If not set and create is true, a name is generated using the fullname template
+  name: ""
+  # Automount service account token
+  automountServiceAccountToken: true
+
+# Pod annotations
+podAnnotations:
+  prometheus.io/scrape: "true"
+  prometheus.io/port: "8080"
+  prometheus.io/path: "/metrics"
+
+# Pod security context
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 65532
+  runAsGroup: 65532
+  fsGroup: 65532
+  fsGroupChangePolicy: OnRootMismatch
+  seccompProfile:
+    type: RuntimeDefault
+
+# Container security context
+securityContext:
+  runAsNonRoot: true
+  runAsUser: 65532
+  runAsGroup: 65532
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+    - ALL
+  readOnlyRootFilesystem: true
+  seccompProfile:
+    type: RuntimeDefault
+
+# Service configuration
+service:
+  type: ClusterIP
+  port: 443
+  targetPort: 8080
+  annotations: {}
+  # sessionAffinity: None
+
+# External service (LoadBalancer)
+externalService:
+  enabled: false
+  type: LoadBalancer
+  port: 443
+  annotations: {}
+  loadBalancerSourceRanges: []
+
+# Ingress configuration
+ingress:
+  enabled: true
+  className: "nginx"
+  annotations:
+    nginx.ingress.kubernetes.io/backend-protocol: "HTTPS"
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/ssl-passthrough: "true"
+    nginx.ingress.kubernetes.io/rate-limit: "1000"
+    nginx.ingress.kubernetes.io/rate-limit-window: "1m"
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+  hosts:
+    - host: keygrid-hsm.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - secretName: keygrid-hsm-tls
+      hosts:
+        - keygrid-hsm.example.com
+
+# Resource limits and requests
+resources:
+  limits:
+    cpu: 1
+    memory: 1Gi
+    ephemeral-storage: 2Gi
+  requests:
+    cpu: 100m
+    memory: 256Mi
+    ephemeral-storage: 1Gi
+
+# Horizontal Pod Autoscaler
+autoscaling:
+  enabled: true
+  minReplicas: 3
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: 80
+
+# Node selector
+nodeSelector: {}
+
+# Tolerations
+tolerations: []
+
+# Affinity and anti-affinity
+affinity:
+  podAntiAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        podAffinityTerm:
+          labelSelector:
+            matchExpressions:
+              - key: app.kubernetes.io/name
+                operator: In
+                values:
+                  - keygrid-hsm
+          topologyKey: kubernetes.io/hostname
+
+# Pod disruption budget
+podDisruptionBudget:
+  enabled: true
+  maxUnavailable: 1
+  # minAvailable: 2
+
+# Probes configuration
+probes:
+  # Startup probe
+  startup:
+    enabled: true
+    httpGet:
+      path: /health
+      port: http
+      scheme: HTTPS
+    initialDelaySeconds: 10
+    periodSeconds: 5
+    timeoutSeconds: 3
+    failureThreshold: 30
+    successThreshold: 1
+  
+  # Liveness probe
+  liveness:
+    enabled: true
+    httpGet:
+      path: /health
+      port: http
+      scheme: HTTPS
+    initialDelaySeconds: 30
+    periodSeconds: 30
+    timeoutSeconds: 5
+    failureThreshold: 3
+    successThreshold: 1
+  
+  # Readiness probe
+  readiness:
+    enabled: true
+    httpGet:
+      path: /ready
+      port: http
+      scheme: HTTPS
+    initialDelaySeconds: 5
+    periodSeconds: 10
+    timeoutSeconds: 3
+    failureThreshold: 3
+    successThreshold: 1
+
+# Application configuration
+config:
+  # Server configuration
+  server:
+    port: 8080
+    host: "0.0.0.0"
+    logLevel: "info"
+    readTimeout: "30s"
+    writeTimeout: "30s"
+    idleTimeout: "120s"
+    
+    # TLS configuration
+    tls:
+      enabled: true
+      certFile: "/etc/ssl/certs/tls.crt"
+      keyFile: "/etc/ssl/private/tls.key"
+  
+  # HSM provider configurations
+  providers:
+    # Mock HSM provider
+    mockHsm:
+      enabled: false
+      config:
+        persistentStorage: false
+        simulateErrors: false
+        simulateLatencyMs: 0
+        maxKeys: 1000
+        keyPrefix: "keygrid-mock"
+    
+    # Custom storage provider
+    customStorage:
+      enabled: true
+      config:
+        storageType: "database"  # database, filesystem, memory
+        encryptAtRest: true
+        keyPrefix: "keygrid-prod"
+        database:
+          table: "hsm_keys"
+          maxConnections: 20
+        filesystem:
+          basePath: "/var/lib/keygrid-hsm/keys"
+    
+    # Azure KeyVault provider
+    azureKeyVault:
+      enabled: false
+      config:
+        useSystemMSI: true
+        useCLI: false
+  
+  # Logging configuration
+  logging:
+    level: "info"
+    format: "json"
+    output: "stdout"
+  
+  # Metrics configuration
+  metrics:
+    enabled: true
+    path: "/metrics"
+    prometheus:
+      enabled: true
+      namespace: "keygrid_hsm"
+  
+  # Health check configuration
+  health:
+    path: "/health"
+    readyPath: "/ready"
+    providerChecks:
+      enabled: true
+      timeout: "5s"
+      interval: "30s"
+  
+  # Audit logging configuration
+  audit:
+    enabled: true
+    destination: "stdout"
+    events:
+      - "key_generate"
+      - "key_import"
+      - "key_delete"
+      - "key_sign"
+      - "key_encrypt"
+      - "key_decrypt"
+      - "authentication_failure"
+  
+  # Security configuration
+  security:
+    authentication:
+      method: "jwt"  # none, jwt, api_key
+      jwt:
+        expiry: "1h"
+    rateLimit:
+      enabled: true
+      requestsPerMinute: 1000
+      burst: 100
+  
+  # Environment
+  environment: "production"
+  
+  # Feature flags
+  features:
+    keyImport: true
+    keyExport: false
+    bulkOperations: false
+    keyBackup: true
+
+# Secret configuration
+secrets:
+  # Create secrets or use existing ones
+  create: true
+  
+  # Existing secret names (if create is false)
+  existingSecret: ""
+  existingTLSSecret: ""
+  
+  # Secret values (only used if create is true)
+  # These should be overridden in environment-specific values files
+  databaseDSN: "postgres://keygrid:REPLACE_PASSWORD@keygrid-postgres:5432/keygrid_hsm?sslmode=require"
+  encryptionKey: "REPLACE_WITH_32_CHARACTER_KEY_HERE"
+  jwtSecret: "REPLACE_WITH_JWT_SECRET_HERE"
+  
+  # Azure KeyVault secrets (if using Azure provider)
+  azure:
+    keyVaultURL: ""
+    clientID: ""
+    clientSecret: ""
+    tenantID: ""
+
+# TLS configuration
+tls:
+  # Generate self-signed certificate for development
+  selfSigned: false
+  
+  # Use cert-manager for automatic certificate management
+  certManager:
+    enabled: true
+    issuer: "letsencrypt-prod"
+    issuerKind: "ClusterIssuer"
+
+# Init containers
+initContainers:
+  waitForPostgres:
+    enabled: true
+    image:
+      registry: docker.io
+      repository: busybox
+      tag: "1.35"
+
+# Persistence (for filesystem storage backend)
+persistence:
+  enabled: false
+  storageClass: ""
+  accessMode: ReadWriteOnce
+  size: 10Gi
+  annotations: {}
+
+# Network policies
+networkPolicy:
+  enabled: false
+  ingress:
+    enabled: true
+    from: []
+  egress:
+    enabled: true
+    to: []
+
+# RBAC configuration
+rbac:
+  # Create RBAC resources
+  create: true
+  
+  # Rules for the service account
+  rules:
+    - apiGroups: [""]
+      resources: ["configmaps", "secrets"]
+      verbs: ["get", "list", "watch"]
+    - apiGroups: [""]
+      resources: ["pods", "pods/status"]
+      verbs: ["get", "list", "patch"]
+
+# Monitoring configuration
+monitoring:
+  # ServiceMonitor for Prometheus Operator
+  serviceMonitor:
+    enabled: true
+    namespace: ""
+    labels: {}
+    interval: 30s
+    scrapeTimeout: 10s
+  
+  # Grafana dashboards
+  grafana:
+    enabled: true
+    folder: "KeyGrid HSM"
+
+# Database configuration (PostgreSQL)
+postgresql:
+  enabled: true
+  auth:
+    postgresPassword: "postgres"
+    username: "keygrid"
+    password: "password"
+    database: "keygrid_hsm"
+  
+  architecture: standalone
+  primary:
+    persistence:
+      enabled: true
+      size: 8Gi
+    
+    resources:
+      limits:
+        memory: 256Mi
+        cpu: 300m
+      requests:
+        memory: 128Mi
+        cpu: 100m
+
+# External database configuration (if postgresql.enabled is false)
+externalDatabase:
+  host: ""
+  port: 5432
+  database: "keygrid_hsm"
+  username: "keygrid"
+  password: ""
+  existingSecret: ""
+  existingSecretPasswordKey: "password"
+
+# Prometheus configuration (optional)
+prometheus:
+  enabled: false
+
+# Grafana configuration (optional)
+grafana:
+  enabled: false
+
+# Test configuration
+tests:
+  enabled: true
+  image:
+    registry: docker.io
+    repository: busybox
+    tag: "1.35"

@@ -1,0 +1,122 @@
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: keygrid-hsm
+  labels:
+    name: keygrid-hsm
+    app.kubernetes.io/name: keygrid-hsm
+    app.kubernetes.io/part-of: keygrid-hsm
+    app.kubernetes.io/managed-by: kubectl
+  annotations:
+    description: "KeyGrid HSM - Enterprise Hardware Security Module"
+---
+# Service Account for KeyGrid HSM
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: keygrid-hsm
+  namespace: keygrid-hsm
+  labels:
+    app.kubernetes.io/name: keygrid-hsm
+    app.kubernetes.io/component: service-account
+automountServiceAccountToken: true
+---
+# ClusterRole for KeyGrid HSM
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: keygrid-hsm
+  labels:
+    app.kubernetes.io/name: keygrid-hsm
+rules:
+# Allow reading of config maps and secrets for configuration
+- apiGroups: [""]
+  resources: ["configmaps", "secrets"]
+  verbs: ["get", "list", "watch"]
+# Allow updating status for health checks
+- apiGroups: [""]
+  resources: ["pods", "pods/status"]
+  verbs: ["get", "list", "patch"]
+# Allow reading nodes for cluster information
+- apiGroups: [""]
+  resources: ["nodes"]
+  verbs: ["get", "list"]
+---
+# ClusterRoleBinding for KeyGrid HSM
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: keygrid-hsm
+  labels:
+    app.kubernetes.io/name: keygrid-hsm
+subjects:
+- kind: ServiceAccount
+  name: keygrid-hsm
+  namespace: keygrid-hsm
+roleRef:
+  kind: ClusterRole
+  name: keygrid-hsm
+  apiGroup: rbac.authorization.k8s.io
+---
+# Network Policy for KeyGrid HSM (optional, requires CNI support)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: keygrid-hsm
+  namespace: keygrid-hsm
+  labels:
+    app.kubernetes.io/name: keygrid-hsm
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: keygrid-hsm
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  # Allow ingress from ingress controller
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: ingress-nginx
+    ports:
+    - protocol: TCP
+      port: 8080
+  # Allow ingress from monitoring namespace
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: monitoring
+    ports:
+    - protocol: TCP
+      port: 8080
+  # Allow database access
+  - from:
+    - podSelector:
+        matchLabels:
+          app.kubernetes.io/name: postgresql
+    ports:
+    - protocol: TCP
+      port: 5432
+  egress:
+  # Allow DNS resolution
+  - to: []
+    ports:
+    - protocol: UDP
+      port: 53
+    - protocol: TCP
+      port: 53
+  # Allow database access
+  - to:
+    - podSelector:
+        matchLabels:
+          app.kubernetes.io/name: postgresql
+    ports:
+    - protocol: TCP
+      port: 5432
+  # Allow Azure KeyVault access (if using Azure)
+  - to: []
+    ports:
+    - protocol: TCP
+      port: 443

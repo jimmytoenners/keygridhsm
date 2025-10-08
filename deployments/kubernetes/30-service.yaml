@@ -1,0 +1,268 @@
+---
+# KeyGrid HSM Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: keygrid-hsm
+  namespace: keygrid-hsm
+  labels:
+    app.kubernetes.io/name: keygrid-hsm
+    app.kubernetes.io/component: service
+  annotations:
+    service.beta.kubernetes.io/aws-load-balancer-type: nlb
+    service.beta.kubernetes.io/aws-load-balancer-backend-protocol: https
+    service.beta.kubernetes.io/aws-load-balancer-ssl-ports: "443"
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "8080"
+    prometheus.io/path: "/metrics"
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: keygrid-hsm
+    app.kubernetes.io/component: server
+  ports:
+  - name: https
+    port: 443
+    targetPort: 8080
+    protocol: TCP
+  - name: http-metrics
+    port: 8080
+    targetPort: 8080
+    protocol: TCP
+  sessionAffinity: None
+
+---
+# KeyGrid HSM Headless Service (for StatefulSet if needed)
+apiVersion: v1
+kind: Service
+metadata:
+  name: keygrid-hsm-headless
+  namespace: keygrid-hsm
+  labels:
+    app.kubernetes.io/name: keygrid-hsm
+    app.kubernetes.io/component: headless-service
+  annotations:
+    service.alpha.kubernetes.io/tolerate-unready-endpoints: "true"
+spec:
+  clusterIP: None
+  selector:
+    app.kubernetes.io/name: keygrid-hsm
+    app.kubernetes.io/component: server
+  ports:
+  - name: https
+    port: 443
+    targetPort: 8080
+    protocol: TCP
+  publishNotReadyAddresses: true
+
+---
+# External Service (LoadBalancer) for KeyGrid HSM
+apiVersion: v1
+kind: Service
+metadata:
+  name: keygrid-hsm-external
+  namespace: keygrid-hsm
+  labels:
+    app.kubernetes.io/name: keygrid-hsm
+    app.kubernetes.io/component: external-service
+  annotations:
+    # AWS Load Balancer annotations
+    service.beta.kubernetes.io/aws-load-balancer-type: "nlb"
+    service.beta.kubernetes.io/aws-load-balancer-scheme: "internet-facing"
+    service.beta.kubernetes.io/aws-load-balancer-backend-protocol: "tcp"
+    service.beta.kubernetes.io/aws-load-balancer-cross-zone-load-balancing-enabled: "true"
+    service.beta.kubernetes.io/aws-load-balancer-connection-draining-enabled: "true"
+    service.beta.kubernetes.io/aws-load-balancer-connection-draining-timeout: "60"
+    service.beta.kubernetes.io/aws-load-balancer-healthcheck-protocol: "tcp"
+    service.beta.kubernetes.io/aws-load-balancer-healthcheck-port: "8080"
+    service.beta.kubernetes.io/aws-load-balancer-healthcheck-interval: "10"
+    service.beta.kubernetes.io/aws-load-balancer-healthcheck-healthy-threshold: "2"
+    service.beta.kubernetes.io/aws-load-balancer-healthcheck-unhealthy-threshold: "2"
+    
+    # Azure Load Balancer annotations (alternative)
+    # service.beta.kubernetes.io/azure-load-balancer-internal: "false"
+    # service.beta.kubernetes.io/azure-load-balancer-tcp-idle-timeout: "4"
+    
+    # GCP Load Balancer annotations (alternative)
+    # cloud.google.com/neg: '{"ingress": true}'
+    # cloud.google.com/backend-config: '{"default": "keygrid-hsm-backend-config"}'
+spec:
+  type: LoadBalancer
+  selector:
+    app.kubernetes.io/name: keygrid-hsm
+    app.kubernetes.io/component: server
+  ports:
+  - name: https
+    port: 443
+    targetPort: 8080
+    protocol: TCP
+  loadBalancerSourceRanges:
+  # Restrict access to specific IP ranges (update as needed)
+  - 0.0.0.0/0  # WARNING: This allows access from anywhere - restrict in production
+  sessionAffinity: None
+
+---
+# Ingress for KeyGrid HSM
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: keygrid-hsm
+  namespace: keygrid-hsm
+  labels:
+    app.kubernetes.io/name: keygrid-hsm
+    app.kubernetes.io/component: ingress
+  annotations:
+    # NGINX Ingress Controller annotations
+    nginx.ingress.kubernetes.io/backend-protocol: "HTTPS"
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/ssl-passthrough: "true"
+    nginx.ingress.kubernetes.io/upstream-vhost: "keygrid-hsm.keygrid-hsm.svc.cluster.local"
+    nginx.ingress.kubernetes.io/proxy-body-size: "10m"
+    nginx.ingress.kubernetes.io/proxy-connect-timeout: "300"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "300"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "300"
+    nginx.ingress.kubernetes.io/rate-limit: "1000"
+    nginx.ingress.kubernetes.io/rate-limit-window: "1m"
+    
+    # Security headers
+    nginx.ingress.kubernetes.io/configuration-snippet: |
+      add_header X-Frame-Options "SAMEORIGIN" always;
+      add_header X-Content-Type-Options "nosniff" always;
+      add_header X-XSS-Protection "1; mode=block" always;
+      add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+      add_header Content-Security-Policy "default-src 'self'; frame-ancestors 'none';" always;
+      add_header Strict-Transport-Security "max-age=63072000; includeSubDomains; preload" always;
+    
+    # Cert-manager annotations (if using cert-manager)
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    cert-manager.io/acme-challenge-type: "http01"
+    
+    # Traffic routing
+    nginx.ingress.kubernetes.io/affinity: "cookie"
+    nginx.ingress.kubernetes.io/affinity-mode: "persistent"
+    nginx.ingress.kubernetes.io/session-cookie-name: "keygrid-hsm-affinity"
+    nginx.ingress.kubernetes.io/session-cookie-expires: "86400"
+    nginx.ingress.kubernetes.io/session-cookie-max-age: "86400"
+    nginx.ingress.kubernetes.io/session-cookie-path: "/"
+    
+spec:
+  ingressClassName: nginx
+  tls:
+  - hosts:
+    - keygrid-hsm.example.com  # Replace with your domain
+    - hsm.keygrid.com         # Replace with your domain
+    secretName: keygrid-hsm-tls-ingress
+  rules:
+  - host: keygrid-hsm.example.com  # Replace with your domain
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: keygrid-hsm
+            port:
+              number: 443
+  - host: hsm.keygrid.com  # Replace with your domain
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: keygrid-hsm
+            port:
+              number: 443
+
+---
+# ServiceMonitor for Prometheus monitoring
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: keygrid-hsm
+  namespace: keygrid-hsm
+  labels:
+    app.kubernetes.io/name: keygrid-hsm
+    app.kubernetes.io/component: monitoring
+    prometheus: kube-prometheus
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: keygrid-hsm
+      app.kubernetes.io/component: service
+  endpoints:
+  - port: http-metrics
+    path: /metrics
+    interval: 30s
+    scrapeTimeout: 10s
+    scheme: https
+    tlsConfig:
+      insecureSkipVerify: true
+  namespaceSelector:
+    matchNames:
+    - keygrid-hsm
+
+---
+# Istio VirtualService (if using Istio service mesh)
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: keygrid-hsm
+  namespace: keygrid-hsm
+  labels:
+    app.kubernetes.io/name: keygrid-hsm
+    app.kubernetes.io/component: istio-virtualservice
+spec:
+  hosts:
+  - keygrid-hsm.example.com  # Replace with your domain
+  - hsm.keygrid.com         # Replace with your domain
+  gateways:
+  - keygrid-hsm-gateway
+  http:
+  - match:
+    - uri:
+        prefix: /
+    route:
+    - destination:
+        host: keygrid-hsm.keygrid-hsm.svc.cluster.local
+        port:
+          number: 443
+    retries:
+      attempts: 3
+      perTryTimeout: 30s
+    timeout: 60s
+    
+---
+# Istio Gateway (if using Istio service mesh)
+apiVersion: networking.istio.io/v1beta1
+kind: Gateway
+metadata:
+  name: keygrid-hsm-gateway
+  namespace: keygrid-hsm
+  labels:
+    app.kubernetes.io/name: keygrid-hsm
+    app.kubernetes.io/component: istio-gateway
+spec:
+  selector:
+    istio: ingressgateway
+  servers:
+  - port:
+      number: 443
+      name: https
+      protocol: HTTPS
+    tls:
+      mode: SIMPLE
+      credentialName: keygrid-hsm-tls
+    hosts:
+    - keygrid-hsm.example.com  # Replace with your domain
+    - hsm.keygrid.com         # Replace with your domain
+  - port:
+      number: 80
+      name: http
+      protocol: HTTP
+    hosts:
+    - keygrid-hsm.example.com  # Replace with your domain
+    - hsm.keygrid.com         # Replace with your domain
+    tls:
+      httpsRedirect: true

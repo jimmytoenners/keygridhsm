@@ -1,0 +1,86 @@
+apiVersion: v2
+name: keygrid-hsm
+description: KeyGrid HSM - Enterprise Hardware Security Module
+version: 1.0.0
+appVersion: "1.0.0"
+
+# Chart type
+type: application
+
+# Keywords for search
+keywords:
+  - hsm
+  - security
+  - cryptography
+  - keys
+  - pki
+  - enterprise
+
+# Maintainers
+maintainers:
+  - name: KeyGrid HSM Team
+    email: hsm-team@keygrid.com
+    url: https://github.com/jimmy/keygridhsm
+
+# Sources
+sources:
+  - https://github.com/jimmy/keygridhsm
+
+# Home page
+home: https://github.com/jimmy/keygridhsm
+
+# Icon (optional)
+# icon: https://example.com/keygrid-hsm-icon.png
+
+# Engine constraint
+kubeVersion: ">=1.20.0"
+
+# Dependencies
+dependencies:
+  - name: postgresql
+    version: "^12.0.0"
+    repository: "https://charts.bitnami.com/bitnami"
+    condition: postgresql.enabled
+    tags:
+      - database
+  
+  - name: prometheus
+    version: "^15.0.0"
+    repository: "https://prometheus-community.github.io/helm-charts"
+    condition: prometheus.enabled
+    tags:
+      - monitoring
+  
+  - name: grafana
+    version: "^6.0.0"
+    repository: "https://grafana.github.io/helm-charts"
+    condition: grafana.enabled
+    tags:
+      - monitoring
+
+# Annotations
+annotations:
+  category: Security
+  licenses: MIT
+  artifacthub.io/changes: |
+    - Initial release of KeyGrid HSM
+    - Support for multiple HSM providers (Azure KeyVault, Custom Storage, Mock)
+    - Enterprise-grade security and audit logging
+    - Comprehensive monitoring and observability
+    - Production-ready deployment with high availability
+  artifacthub.io/containsSecurityUpdates: "false"
+  artifacthub.io/images: |
+    - name: keygrid-hsm
+      image: keygrid-hsm:1.0.0
+  artifacthub.io/license: MIT
+  artifacthub.io/links: |
+    - name: GitHub
+      url: https://github.com/jimmy/keygridhsm
+    - name: Documentation
+      url: https://github.com/jimmy/keygridhsm/docs
+  artifacthub.io/operator: "false"
+  artifacthub.io/prerelease: "false"
+  artifacthub.io/recommendations: |
+    - url: https://artifacthub.io/packages/helm/prometheus-community/kube-prometheus-stack
+    - url: https://artifacthub.io/packages/helm/bitnami/postgresql
+    - url: https://artifacthub.io/packages/helm/ingress-nginx/ingress-nginx

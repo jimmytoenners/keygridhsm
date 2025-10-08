@@ -1,0 +1,166 @@
+# KeyGrid HSM - Production Configuration for Docker Deployment
+
+server:
+  port: 8080
+  host: "0.0.0.0"
+  log_level: "info"
+  read_timeout: "30s"
+  write_timeout: "30s"
+  idle_timeout: "120s"
+  
+  # TLS Configuration
+  tls:
+    enabled: false
+    cert_file: "/etc/ssl/certs/keygrid-hsm.crt"
+    key_file: "/etc/ssl/private/keygrid-hsm.key"
+    
+  # Security headers
+  security:
+    cors_enabled: true
+    cors_origins: ["https://*.keygrid.com"]
+    rate_limiting:
+      enabled: true
+      requests_per_minute: 100
+
+# HSM Provider Configurations
+providers:
+  # Mock HSM for development and testing
+  mock-hsm:
+    enabled: true
+    config:
+      persistent_storage: false
+      simulate_errors: false
+      simulate_latency_ms: 0
+      max_keys: 1000
+      key_prefix: "keygrid-mock"
+      
+  # Custom Storage Provider
+  custom-storage:
+    enabled: true
+    config:
+      storage_type: "filesystem"  # or "database", "memory"
+      encrypt_at_rest: true
+      encryption_key_env: "KEYGRID_ENCRYPTION_KEY"
+      key_prefix: "keygrid-custom"
+      
+      # Filesystem storage configuration
+      filesystem:
+        base_path: "/var/lib/keygrid-hsm/keys"
+        
+      # Database storage configuration (if storage_type: database)
+      database:
+        dsn_env: "KEYGRID_DATABASE_DSN"
+        table: "hsm_keys"
+        max_connections: 10
+        
+  # Azure KeyVault Provider
+  azure-keyvault:
+    enabled: false  # Enable only when Azure credentials are available
+    config:
+      vault_url_env: "AZURE_KEYVAULT_URL"
+      # Authentication options:
+      use_system_msi: true  # Use managed identity in Azure
+      use_cli: false        # Use Azure CLI credentials
+      # Or use service principal:
+      client_id_env: "AZURE_CLIENT_ID"
+      client_secret_env: "AZURE_CLIENT_SECRET"
+      tenant_id_env: "AZURE_TENANT_ID"
+
+# Logging Configuration
+logging:
+  level: "info"
+  format: "json"  # json or text
+  output: "stdout"
+  
+  # Log sampling for high-volume environments
+  sampling:
+    enabled: false
+    initial: 100
+    thereafter: 100
+
+# Metrics Configuration
+metrics:
+  enabled: true
+  path: "/metrics"
+  
+  # Prometheus configuration
+  prometheus:
+    enabled: true
+    namespace: "keygrid_hsm"
+    
+  # Custom metrics
+  custom_metrics:
+    - name: "key_operations_total"
+      type: "counter"
+      help: "Total number of key operations"
+    - name: "key_operation_duration_seconds"
+      type: "histogram"
+      help: "Duration of key operations"
+
+# Health Check Configuration
+health:
+  path: "/health"
+  ready_path: "/ready"
+  
+  # Provider health check settings
+  provider_checks:
+    enabled: true
+    timeout: "5s"
+    interval: "30s"
+
+# Audit Logging
+audit:
+  enabled: true
+  
+  # Audit log destination
+  destination: "stdout"  # stdout, file, or syslog
+  
+  # File destination settings (if destination: file)
+  file:
+    path: "/var/log/keygrid-hsm/audit.log"
+    max_size: "100MB"
+    max_backups: 5
+    max_age: "30d"
+    compress: true
+    
+  # Events to audit
+  events:
+    - "key_generate"
+    - "key_import"
+    - "key_delete"
+    - "key_sign"
+    - "key_encrypt"
+    - "key_decrypt"
+    - "authentication_failure"
+
+# Security Configuration
+security:
+  # API Authentication
+  authentication:
+    method: "none"  # none, jwt, api_key
+    
+    # JWT configuration (if method: jwt)
+    jwt:
+      secret_env: "KEYGRID_JWT_SECRET"
+      expiry: "1h"
+      
+    # API Key configuration (if method: api_key)
+    api_key:
+      header: "X-API-Key"
+      keys_env: "KEYGRID_API_KEYS"  # Comma-separated list
+      
+  # Rate limiting
+  rate_limit:
+    enabled: true
+    requests_per_minute: 100
+    burst: 20
+
+# Environment-specific overrides
+environment: "production"
+
+# Feature flags
+features:
+  key_import: true
+  key_export: false
+  bulk_operations: false
+  key_backup: true

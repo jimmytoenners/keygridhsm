@@ -1,0 +1,219 @@
+version: '3.8'
+
+services:
+  keygrid-hsm:
+    build:
+      context: ../..
+      dockerfile: Dockerfile
+    image: keygrid-hsm:latest
+    container_name: keygrid-hsm
+    ports:
+      - "8080:8080"
+      - "8081:8081"  # Metrics port
+    environment:
+      # Database configuration
+      - KEYGRID_DATABASE_DSN=postgres://keygrid:password@postgres:5432/keygrid_hsm?sslmode=disable
+      
+      # Encryption key for keys at rest
+      - KEYGRID_ENCRYPTION_KEY=dev-encryption-key-32-characters-long!
+      
+      # Azure KeyVault configuration (if using Azure)
+      # - AZURE_KEYVAULT_URL=https://your-keyvault.vault.azure.net/
+      # - AZURE_CLIENT_ID=your-client-id
+      # - AZURE_CLIENT_SECRET=your-client-secret
+      # - AZURE_TENANT_ID=your-tenant-id
+      
+      # Logging configuration
+      - LOG_LEVEL=debug
+      - LOG_FORMAT=text
+      
+      # Feature flags
+      - KEYGRID_ENABLE_DEBUG=true
+      - KEYGRID_ENVIRONMENT=development
+    
+    volumes:
+      # Persistent storage for filesystem backend
+      - keygrid-data:/var/lib/keygrid-hsm
+      - ./configs/development.yaml:/etc/keygrid-hsm/configs/production.yaml:ro
+      
+      # TLS certificates (if using TLS)
+      # - ./certs:/etc/ssl/certs:ro
+      # - ./private:/etc/ssl/private:ro
+    
+    depends_on:
+      postgres:
+        condition: service_healthy
+      prometheus:
+        condition: service_started
+    
+    networks:
+      - keygrid-network
+    
+    restart: unless-stopped
+    
+    healthcheck:
+      test: ["/usr/local/bin/keygrid-hsm", "health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    
+    security_opt:
+      - no-new-privileges:true
+    
+    # Resource limits
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.5'
+        reservations:
+          memory: 256M
+          cpus: '0.25'
+
+  postgres:
+    image: postgres:15-alpine
+    container_name: keygrid-postgres
+    environment:
+      - POSTGRES_DB=keygrid_hsm
+      - POSTGRES_USER=keygrid
+      - POSTGRES_PASSWORD=password
+      - POSTGRES_INITDB_ARGS=--encoding=UTF-8 --lc-collate=C --lc-ctype=C
+    
+    ports:
+      - "5432:5432"
+    
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./init-scripts:/docker-entrypoint-initdb.d:ro
+    
+    networks:
+      - keygrid-network
+    
+    restart: unless-stopped
+    
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U keygrid -d keygrid_hsm"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    
+    # Resource limits
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: '0.3'
+        reservations:
+          memory: 128M
+          cpus: '0.1'
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: keygrid-prometheus
+    ports:
+      - "9090:9090"
+    
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--web.enable-lifecycle'
+      - '--storage.tsdb.retention.time=7d'
+    
+    networks:
+      - keygrid-network
+    
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: keygrid-grafana
+    ports:
+      - "3000:3000"
+    
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+    
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./monitoring/grafana/datasources:/etc/grafana/provisioning/datasources:ro
+    
+    depends_on:
+      - prometheus
+    
+    networks:
+      - keygrid-network
+    
+    restart: unless-stopped
+
+  # Log aggregation (optional)
+  loki:
+    image: grafana/loki:latest
+    container_name: keygrid-loki
+    ports:
+      - "3100:3100"
+    
+    volumes:
+      - ./monitoring/loki-config.yaml:/etc/loki/local-config.yaml:ro
+      - loki-data:/loki
+    
+    command: -config.file=/etc/loki/local-config.yaml
+    
+    networks:
+      - keygrid-network
+    
+    restart: unless-stopped
+
+  # Test client container for integration testing
+  test-client:
+    build:
+      context: ../..
+      dockerfile: Dockerfile.test
+    container_name: keygrid-test-client
+    environment:
+      - KEYGRID_HSM_URL=http://keygrid-hsm:8080
+    
+    depends_on:
+      keygrid-hsm:
+        condition: service_healthy
+    
+    networks:
+      - keygrid-network
+    
+    profiles:
+      - testing
+    
+    volumes:
+      - ./tests:/tests:ro
+
+networks:
+  keygrid-network:
+    driver: bridge
+    ipam:
+      driver: default
+      config:
+        - subnet: 172.20.0.0/16
+
+volumes:
+  keygrid-data:
+    driver: local
+  postgres-data:
+    driver: local
+  prometheus-data:
+    driver: local
+  grafana-data:
+    driver: local
+  loki-data:
+    driver: local
+
+# Development override file can be created as docker-compose.override.yaml
+# Production deployments should use docker-compose.prod.yaml

@@ -1,0 +1,353 @@
+---
+# KeyGrid HSM Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: keygrid-hsm
+  namespace: keygrid-hsm
+  labels:
+    app.kubernetes.io/name: keygrid-hsm
+    app.kubernetes.io/component: server
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/managed-by: kubectl
+  annotations:
+    deployment.kubernetes.io/revision: "1"
+    description: "KeyGrid HSM Enterprise Deployment"
+spec:
+  replicas: 3
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: keygrid-hsm
+      app.kubernetes.io/component: server
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: keygrid-hsm
+        app.kubernetes.io/component: server
+        app.kubernetes.io/version: "1.0.0"
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8080"
+        prometheus.io/path: "/metrics"
+        co.elastic.logs/enabled: "true"
+        co.elastic.logs/json: "true"
+    spec:
+      serviceAccountName: keygrid-hsm
+      automountServiceAccountToken: true
+      
+      # Security context
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        fsGroup: 65532
+        fsGroupChangePolicy: "OnRootMismatch"
+        seccompProfile:
+          type: RuntimeDefault
+      
+      # Pod anti-affinity for high availability
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: app.kubernetes.io/name
+                  operator: In
+                  values:
+                  - keygrid-hsm
+              topologyKey: kubernetes.io/hostname
+      
+      # Node selection
+      nodeSelector:
+        kubernetes.io/arch: amd64
+      
+      tolerations:
+      - key: "node.kubernetes.io/not-ready"
+        operator: "Exists"
+        effect: "NoExecute"
+        tolerationSeconds: 300
+      - key: "node.kubernetes.io/unreachable"
+        operator: "Exists"
+        effect: "NoExecute"
+        tolerationSeconds: 300
+      
+      # Init containers
+      initContainers:
+      - name: wait-for-postgres
+        image: busybox:1.35
+        command: 
+        - sh
+        - -c
+        - |
+          until nc -z keygrid-postgres 5432; do
+            echo "Waiting for PostgreSQL..."
+            sleep 2
+          done
+          echo "PostgreSQL is ready!"
+        securityContext:
+          runAsNonRoot: true
+          runAsUser: 65532
+          runAsGroup: 65532
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          readOnlyRootFilesystem: true
+      
+      containers:
+      - name: keygrid-hsm
+        image: keygrid-hsm:latest
+        imagePullPolicy: IfNotPresent
+        
+        # Security context
+        securityContext:
+          runAsNonRoot: true
+          runAsUser: 65532
+          runAsGroup: 65532
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          readOnlyRootFilesystem: true
+          seccompProfile:
+            type: RuntimeDefault
+        
+        # Container ports
+        ports:
+        - name: http
+          containerPort: 8080
+          protocol: TCP
+        
+        # Environment variables
+        env:
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: POD_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        - name: POD_IP
+          valueFrom:
+            fieldRef:
+              fieldPath: status.podIP
+        - name: NODE_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: spec.nodeName
+        
+        # Environment variables from secrets
+        envFrom:
+        - secretRef:
+            name: keygrid-hsm-secrets
+            optional: false
+        
+        # Startup probe
+        startupProbe:
+          httpGet:
+            path: /health
+            port: http
+            scheme: HTTPS
+          initialDelaySeconds: 10
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 30
+          successThreshold: 1
+        
+        # Liveness probe
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: http
+            scheme: HTTPS
+          initialDelaySeconds: 30
+          periodSeconds: 30
+          timeoutSeconds: 5
+          failureThreshold: 3
+          successThreshold: 1
+        
+        # Readiness probe
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: http
+            scheme: HTTPS
+          initialDelaySeconds: 5
+          periodSeconds: 10
+          timeoutSeconds: 3
+          failureThreshold: 3
+          successThreshold: 1
+        
+        # Resource limits and requests
+        resources:
+          limits:
+            cpu: "1"
+            memory: "1Gi"
+            ephemeral-storage: "2Gi"
+          requests:
+            cpu: "100m"
+            memory: "256Mi"
+            ephemeral-storage: "1Gi"
+        
+        # Volume mounts
+        volumeMounts:
+        - name: config
+          mountPath: /etc/keygrid-hsm/configs
+          readOnly: true
+        - name: tls-certs
+          mountPath: /etc/ssl/certs
+          readOnly: true
+        - name: tls-private
+          mountPath: /etc/ssl/private
+          readOnly: true
+        - name: tmp
+          mountPath: /tmp
+          readOnly: false
+        - name: var-run
+          mountPath: /var/run
+          readOnly: false
+        - name: var-cache
+          mountPath: /var/cache
+          readOnly: false
+        
+        # Lifecycle hooks
+        lifecycle:
+          preStop:
+            exec:
+              command:
+              - /bin/sh
+              - -c
+              - |
+                # Graceful shutdown
+                sleep 15
+        
+        # Command and args
+        args:
+        - "server"
+        - "--config=/etc/keygrid-hsm/configs/production.yaml"
+        - "--bind=0.0.0.0:8080"
+        - "--tls=true"
+        - "--cert=/etc/ssl/certs/tls.crt"
+        - "--key=/etc/ssl/private/tls.key"
+      
+      # Volumes
+      volumes:
+      - name: config
+        configMap:
+          name: keygrid-hsm-config
+          defaultMode: 0644
+      - name: tls-certs
+        secret:
+          secretName: keygrid-hsm-tls
+          defaultMode: 0644
+          items:
+          - key: tls.crt
+            path: tls.crt
+      - name: tls-private
+        secret:
+          secretName: keygrid-hsm-tls
+          defaultMode: 0600
+          items:
+          - key: tls.key
+            path: tls.key
+      - name: tmp
+        emptyDir:
+          sizeLimit: 100Mi
+      - name: var-run
+        emptyDir:
+          sizeLimit: 100Mi
+      - name: var-cache
+        emptyDir:
+          sizeLimit: 100Mi
+      
+      # DNS configuration
+      dnsPolicy: ClusterFirst
+      dnsConfig:
+        options:
+        - name: ndots
+          value: "2"
+        - name: edns0
+      
+      # Restart policy
+      restartPolicy: Always
+      
+      # Termination grace period
+      terminationGracePeriodSeconds: 30
+      
+      # Image pull secrets (if using private registry)
+      # imagePullSecrets:
+      # - name: regcred
+
+---
+# Horizontal Pod Autoscaler for KeyGrid HSM
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: keygrid-hsm
+  namespace: keygrid-hsm
+  labels:
+    app.kubernetes.io/name: keygrid-hsm
+    app.kubernetes.io/component: autoscaler
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: keygrid-hsm
+  minReplicas: 3
+  maxReplicas: 10
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 80
+  behavior:
+    scaleUp:
+      stabilizationWindowSeconds: 300
+      policies:
+      - type: Percent
+        value: 100
+        periodSeconds: 15
+      - type: Pods
+        value: 2
+        periodSeconds: 60
+      selectPolicy: Max
+    scaleDown:
+      stabilizationWindowSeconds: 300
+      policies:
+      - type: Percent
+        value: 10
+        periodSeconds: 60
+      selectPolicy: Min
+
+---
+# Pod Disruption Budget for KeyGrid HSM
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: keygrid-hsm
+  namespace: keygrid-hsm
+  labels:
+    app.kubernetes.io/name: keygrid-hsm
+    app.kubernetes.io/component: disruption-budget
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: keygrid-hsm
+      app.kubernetes.io/component: server
+  maxUnavailable: 1

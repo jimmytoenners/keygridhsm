@@ -1,0 +1,189 @@
+---
+# ConfigMap for KeyGrid HSM configuration
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: keygrid-hsm-config
+  namespace: keygrid-hsm
+  labels:
+    app.kubernetes.io/name: keygrid-hsm
+    app.kubernetes.io/component: config
+data:
+  production.yaml: |
+    # KeyGrid HSM - Kubernetes Production Configuration
+    server:
+      port: 8080
+      host: "0.0.0.0"
+      log_level: "info"
+      read_timeout: "30s"
+      write_timeout: "30s"
+      idle_timeout: "120s"
+      
+      # TLS Configuration
+      tls:
+        enabled: true
+        cert_file: "/etc/ssl/certs/tls.crt"
+        key_file: "/etc/ssl/private/tls.key"
+        
+      # Security headers
+      security:
+        cors_enabled: true
+        cors_origins: ["https://*.keygrid.com"]
+        rate_limiting:
+          enabled: true
+          requests_per_minute: 1000
+
+    # HSM Provider Configurations
+    providers:
+      # Mock HSM for development and testing
+      mock-hsm:
+        enabled: false
+        config:
+          persistent_storage: false
+          simulate_errors: false
+          simulate_latency_ms: 0
+          max_keys: 1000
+          key_prefix: "keygrid-mock"
+          
+      # Custom Storage Provider
+      custom-storage:
+        enabled: true
+        config:
+          storage_type: "database"
+          encrypt_at_rest: true
+          encryption_key_env: "KEYGRID_ENCRYPTION_KEY"
+          key_prefix: "keygrid-prod"
+          
+          # Database storage configuration
+          database:
+            dsn_env: "KEYGRID_DATABASE_DSN"
+            table: "hsm_keys"
+            max_connections: 20
+            
+      # Azure KeyVault Provider (configure as needed)
+      azure-keyvault:
+        enabled: false
+        config:
+          vault_url_env: "AZURE_KEYVAULT_URL"
+          use_system_msi: true
+          client_id_env: "AZURE_CLIENT_ID"
+          client_secret_env: "AZURE_CLIENT_SECRET"
+          tenant_id_env: "AZURE_TENANT_ID"
+
+    # Logging Configuration
+    logging:
+      level: "info"
+      format: "json"
+      output: "stdout"
+      
+    # Metrics Configuration
+    metrics:
+      enabled: true
+      path: "/metrics"
+      prometheus:
+        enabled: true
+        namespace: "keygrid_hsm"
+        
+    # Health Check Configuration
+    health:
+      path: "/health"
+      ready_path: "/ready"
+      provider_checks:
+        enabled: true
+        timeout: "5s"
+        interval: "30s"
+
+    # Audit Logging
+    audit:
+      enabled: true
+      destination: "stdout"
+      events:
+        - "key_generate"
+        - "key_import"
+        - "key_delete"
+        - "key_sign"
+        - "key_encrypt"
+        - "key_decrypt"
+        - "authentication_failure"
+
+    # Security Configuration
+    security:
+      authentication:
+        method: "jwt"
+        jwt:
+          secret_env: "KEYGRID_JWT_SECRET"
+          expiry: "1h"
+      rate_limit:
+        enabled: true
+        requests_per_minute: 1000
+        burst: 100
+
+    environment: "production"
+
+    features:
+      key_import: true
+      key_export: false
+      bulk_operations: false
+      key_backup: true
+
+---
+# Secret for sensitive configuration values
+apiVersion: v1
+kind: Secret
+metadata:
+  name: keygrid-hsm-secrets
+  namespace: keygrid-hsm
+  labels:
+    app.kubernetes.io/name: keygrid-hsm
+    app.kubernetes.io/component: secret
+type: Opaque
+stringData:
+  # Database connection string (update with actual values)
+  KEYGRID_DATABASE_DSN: "postgres://keygrid:REPLACE_PASSWORD@keygrid-postgres:5432/keygrid_hsm?sslmode=require"
+  
+  # Encryption key for keys at rest (generate a strong 32-character key)
+  KEYGRID_ENCRYPTION_KEY: "REPLACE_WITH_32_CHARACTER_KEY_HERE"
+  
+  # JWT secret for API authentication (generate a strong secret)
+  KEYGRID_JWT_SECRET: "REPLACE_WITH_JWT_SECRET_HERE"
+  
+  # Azure KeyVault configuration (if using Azure)
+  # AZURE_KEYVAULT_URL: "https://your-keyvault.vault.azure.net/"
+  # AZURE_CLIENT_ID: "your-azure-client-id"
+  # AZURE_CLIENT_SECRET: "your-azure-client-secret"
+  # AZURE_TENANT_ID: "your-azure-tenant-id"
+
+---
+# TLS Secret (create this manually or with cert-manager)
+apiVersion: v1
+kind: Secret
+metadata:
+  name: keygrid-hsm-tls
+  namespace: keygrid-hsm
+  labels:
+    app.kubernetes.io/name: keygrid-hsm
+    app.kubernetes.io/component: tls
+type: kubernetes.io/tls
+data:
+  # Base64 encoded certificate and key
+  # Generate with: kubectl create secret tls keygrid-hsm-tls --cert=tls.crt --key=tls.key -n keygrid-hsm
+  tls.crt: LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0t...  # Replace with actual certificate
+  tls.key: LS0tLS1CRUdJTiBQUklWQVRFIEtFWS0tLS0t...  # Replace with actual private key
+
+---
+# Certificate issuer for cert-manager (optional)
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: keygrid-hsm-cert
+  namespace: keygrid-hsm
+  labels:
+    app.kubernetes.io/name: keygrid-hsm
+spec:
+  secretName: keygrid-hsm-tls
+  issuerRef:
+    name: letsencrypt-prod  # Or your preferred issuer
+    kind: ClusterIssuer
+  dnsNames:
+  - keygrid-hsm.example.com  # Replace with your domain
+  - hsm.keygrid.com         # Replace with your domain
