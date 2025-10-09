@@ -1,3 +1,5 @@
+// Package metrics provides metrics collection and monitoring
+// capabilities for the KeyGrid HSM system.
 package metrics
 
 import (

@@ -5,7 +5,6 @@ import (
 	"crypto"
 	"crypto/ecdsa"
 	"crypto/ed25519"
-	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/sha256"
@@ -18,6 +17,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
 
+	cryptoutils "github.com/jimmy/keygridhsm/internal/crypto"
 	"github.com/jimmy/keygridhsm/pkg/models"
 )
 
@@ -709,43 +709,7 @@ func parseMockHSMConfig(config map[string]interface{}) (*MockHSMConfig, error) {
 }
 
 func (c *MockHSMClient) generateKeyPair(spec models.KeySpec) (crypto.PrivateKey, crypto.PublicKey, error) {
-	switch spec.KeyType {
-	case models.KeyTypeRSA:
-		privateKey, err := rsa.GenerateKey(rand.Reader, spec.KeySize)
-		if err != nil {
-			return nil, nil, err
-		}
-		return privateKey, &privateKey.PublicKey, nil
-
-	case models.KeyTypeECDSA:
-		var curve elliptic.Curve
-		switch spec.KeySize {
-		case 256:
-			curve = elliptic.P256()
-		case 384:
-			curve = elliptic.P384()
-		case 521:
-			curve = elliptic.P521()
-		default:
-			return nil, nil, fmt.Errorf("unsupported ECDSA key size: %d", spec.KeySize)
-		}
-
-		privateKey, err := ecdsa.GenerateKey(curve, rand.Reader)
-		if err != nil {
-			return nil, nil, err
-		}
-		return privateKey, &privateKey.PublicKey, nil
-
-	case models.KeyTypeEd25519:
-		publicKey, privateKey, err := ed25519.GenerateKey(rand.Reader)
-		if err != nil {
-			return nil, nil, err
-		}
-		return privateKey, publicKey, nil
-
-	default:
-		return nil, nil, fmt.Errorf("unsupported key type: %s", spec.KeyType)
-	}
+	return cryptoutils.GenerateKeyPair(spec)
 }
 
 func (c *MockHSMClient) performSigning(privateKey crypto.PrivateKey, data []byte, algorithm string) ([]byte, error) {

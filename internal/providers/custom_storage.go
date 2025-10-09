@@ -7,7 +7,6 @@ import (
 	"crypto/cipher"
 	"crypto/ecdsa"
 	"crypto/ed25519"
-	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/sha256"
@@ -21,9 +20,10 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
-	"golang.org/x/crypto/pbkdf2"
 
+	cryptoutils "github.com/jimmy/keygridhsm/internal/crypto"
 	"github.com/jimmy/keygridhsm/pkg/models"
+	"golang.org/x/crypto/pbkdf2"
 )
 
 const (
@@ -156,8 +156,8 @@ func (p *CustomStorageProvider) CreateClient(config map[string]interface{}) (mod
 			WithProvider(CustomStorageProviderName)
 	}
 
-	if err := p.ValidateConfig(config); err != nil {
-		return nil, err
+	if validationErr := p.ValidateConfig(config); validationErr != nil {
+		return nil, validationErr
 	}
 
 	// Create storage backend
@@ -459,7 +459,8 @@ func (c *CustomStorageClient) SetKeyExpiration(ctx context.Context, keyHandle st
 	}
 
 	var storedKey StoredKeyData
-	if err := json.Unmarshal(data, &storedKey); err != nil {
+	if unmarshalErr := json.Unmarshal(data, &storedKey); unmarshalErr != nil {
+		return fmt.Errorf("failed to unmarshal stored key: %w", unmarshalErr)
 		return models.NewHSMErrorWithCause(models.ErrCodeUnknown,
 			"Failed to unmarshal stored key data", err).
 			WithProvider(CustomStorageProviderName)
@@ -492,7 +493,8 @@ func (c *CustomStorageClient) GetPublicKey(ctx context.Context, keyHandle string
 	}
 
 	var storedKey StoredKeyData
-	if err := json.Unmarshal(data, &storedKey); err != nil {
+	if unmarshalErr := json.Unmarshal(data, &storedKey); unmarshalErr != nil {
+		return nil, fmt.Errorf("failed to unmarshal stored key: %w", unmarshalErr)
 		return nil, models.NewHSMErrorWithCause(models.ErrCodeUnknown,
 			"Failed to unmarshal stored key data", err).
 			WithProvider(CustomStorageProviderName)
@@ -661,43 +663,7 @@ func parseCustomStorageConfig(config map[string]interface{}) (*CustomStorageConf
 }
 
 func (c *CustomStorageClient) generateKeyPair(spec models.KeySpec) (crypto.PrivateKey, crypto.PublicKey, error) {
-	switch spec.KeyType {
-	case models.KeyTypeRSA:
-		privateKey, err := rsa.GenerateKey(rand.Reader, spec.KeySize)
-		if err != nil {
-			return nil, nil, err
-		}
-		return privateKey, &privateKey.PublicKey, nil
-
-	case models.KeyTypeECDSA:
-		var curve elliptic.Curve
-		switch spec.KeySize {
-		case 256:
-			curve = elliptic.P256()
-		case 384:
-			curve = elliptic.P384()
-		case 521:
-			curve = elliptic.P521()
-		default:
-			return nil, nil, fmt.Errorf("unsupported ECDSA key size: %d", spec.KeySize)
-		}
-
-		privateKey, err := ecdsa.GenerateKey(curve, rand.Reader)
-		if err != nil {
-			return nil, nil, err
-		}
-		return privateKey, &privateKey.PublicKey, nil
-
-	case models.KeyTypeEd25519:
-		publicKey, privateKey, err := ed25519.GenerateKey(rand.Reader)
-		if err != nil {
-			return nil, nil, err
-		}
-		return privateKey, publicKey, nil
-
-	default:
-		return nil, nil, fmt.Errorf("unsupported key type: %s", spec.KeyType)
-	}
+	return cryptoutils.GenerateKeyPair(spec)
 }
 
 func (c *CustomStorageClient) serializePrivateKey(privateKey crypto.PrivateKey) ([]byte, error) {
@@ -844,7 +810,8 @@ func (c *CustomStorageClient) updateKeyState(ctx context.Context, keyHandle stri
 	}
 
 	var storedKey StoredKeyData
-	if err := json.Unmarshal(data, &storedKey); err != nil {
+	if unmarshalErr := json.Unmarshal(data, &storedKey); unmarshalErr != nil {
+		return fmt.Errorf("failed to unmarshal stored key for signing: %w", unmarshalErr)
 		return models.NewHSMErrorWithCause(models.ErrCodeUnknown,
 			"Failed to unmarshal stored key data", err).
 			WithProvider(CustomStorageProviderName)

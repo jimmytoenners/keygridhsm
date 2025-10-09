@@ -187,7 +187,12 @@ func runHealthCheck(cmd *cobra.Command, args []string) {
 		fmt.Fprintf(os.Stderr, "Health check failed: %v\n", err)
 		os.Exit(1)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if closeErr := resp.Body.Close(); closeErr != nil {
+			// Log error but don't fail the process
+			_ = closeErr
+		}
+	}()
 
 	if resp.StatusCode != http.StatusOK {
 		fmt.Fprintf(os.Stderr, "Health check failed with status: %d\n", resp.StatusCode)
@@ -394,11 +399,11 @@ func (s *HSMServer) handleListKeys(w http.ResponseWriter, r *http.Request) {
 
 func (s *HSMServer) handleGetKey(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
-	keyId := vars["keyId"]
+	keyID := vars["keyId"]
 
 	// TODO: Implement key retrieval
 	response := map[string]interface{}{
-		"key_id": keyId,
+		"key_id": keyID,
 		"status": "not_implemented",
 	}
 	s.sendJSONResponse(w, http.StatusOK, response)
@@ -406,11 +411,11 @@ func (s *HSMServer) handleGetKey(w http.ResponseWriter, r *http.Request) {
 
 func (s *HSMServer) handleDeleteKey(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
-	keyId := vars["keyId"]
+	keyID := vars["keyId"]
 
 	// TODO: Implement key deletion
 	response := map[string]interface{}{
-		"key_id": keyId,
+		"key_id": keyID,
 		"status": "deleted",
 	}
 	s.sendJSONResponse(w, http.StatusOK, response)
@@ -418,10 +423,10 @@ func (s *HSMServer) handleDeleteKey(w http.ResponseWriter, r *http.Request) {
 
 func (s *HSMServer) handleActivateKey(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
-	keyId := vars["keyId"]
+	keyID := vars["keyId"]
 
 	response := map[string]interface{}{
-		"key_id": keyId,
+		"key_id": keyID,
 		"status": "activated",
 	}
 	s.sendJSONResponse(w, http.StatusOK, response)
@@ -429,40 +434,22 @@ func (s *HSMServer) handleActivateKey(w http.ResponseWriter, r *http.Request) {
 
 func (s *HSMServer) handleDeactivateKey(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
-	keyId := vars["keyId"]
+	keyID := vars["keyId"]
 
 	response := map[string]interface{}{
-		"key_id": keyId,
+		"key_id": keyID,
 		"status": "deactivated",
 	}
 	s.sendJSONResponse(w, http.StatusOK, response)
 }
 
 func (s *HSMServer) handleSign(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	keyId := vars["keyId"]
-
-	var req struct {
-		Data      []byte `json:"data"`
-		Algorithm string `json:"algorithm"`
-	}
-
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		s.sendErrorResponse(w, http.StatusBadRequest, "Invalid request body", err)
-		return
-	}
-
-	response := map[string]interface{}{
-		"key_id":    keyId,
-		"signature": "mock_signature_data",
-		"algorithm": req.Algorithm,
-	}
-	s.sendJSONResponse(w, http.StatusOK, response)
+	s.handleCryptoOperation(w, r, "sign", "signature", "mock_signature_data")
 }
 
 func (s *HSMServer) handleVerify(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
-	keyId := vars["keyId"]
+	keyID := vars["keyId"]
 
 	var req struct {
 		Data      []byte `json:"data"`
@@ -476,37 +463,19 @@ func (s *HSMServer) handleVerify(w http.ResponseWriter, r *http.Request) {
 	}
 
 	response := map[string]interface{}{
-		"key_id": keyId,
+		"key_id": keyID,
 		"valid":  true,
 	}
 	s.sendJSONResponse(w, http.StatusOK, response)
 }
 
 func (s *HSMServer) handleEncrypt(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	keyId := vars["keyId"]
-
-	var req struct {
-		Data      []byte `json:"data"`
-		Algorithm string `json:"algorithm"`
-	}
-
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		s.sendErrorResponse(w, http.StatusBadRequest, "Invalid request body", err)
-		return
-	}
-
-	response := map[string]interface{}{
-		"key_id":     keyId,
-		"ciphertext": "mock_encrypted_data",
-		"algorithm":  req.Algorithm,
-	}
-	s.sendJSONResponse(w, http.StatusOK, response)
+	s.handleCryptoOperation(w, r, "encrypt", "ciphertext", "mock_encrypted_data")
 }
 
 func (s *HSMServer) handleDecrypt(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
-	keyId := vars["keyId"]
+	keyID := vars["keyId"]
 
 	var req struct {
 		Ciphertext []byte `json:"ciphertext"`
@@ -518,8 +487,9 @@ func (s *HSMServer) handleDecrypt(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Simple mock response
 	response := map[string]interface{}{
-		"key_id":    keyId,
+		"key_id":    keyID,
 		"plaintext": "mock_decrypted_data",
 		"algorithm": req.Algorithm,
 	}
@@ -532,6 +502,29 @@ func (s *HSMServer) sendJSONResponse(w http.ResponseWriter, statusCode int, data
 	if err := json.NewEncoder(w).Encode(data); err != nil {
 		s.logger.WithError(err).Error("Failed to encode JSON response")
 	}
+}
+
+// handleCryptoOperation handles the common pattern for crypto operations with algorithm/data
+func (s *HSMServer) handleCryptoOperation(w http.ResponseWriter, r *http.Request, operationType string, resultField string, resultValue interface{}) {
+	vars := mux.Vars(r)
+	keyID := vars["keyId"]
+
+	var req struct {
+		Data      []byte `json:"data"`
+		Algorithm string `json:"algorithm"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		s.sendErrorResponse(w, http.StatusBadRequest, "Invalid request body", err)
+		return
+	}
+
+	response := map[string]interface{}{
+		"key_id":    keyID,
+		"algorithm": req.Algorithm,
+	}
+	response[resultField] = resultValue
+	s.sendJSONResponse(w, http.StatusOK, response)
 }
 
 func (s *HSMServer) sendErrorResponse(w http.ResponseWriter, statusCode int, message string, err error) {

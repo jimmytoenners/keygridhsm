@@ -1,3 +1,6 @@
+// Package config provides configuration management for the KeyGrid HSM system.
+// It handles loading configuration from files, environment variables, and
+// provides validation of the configuration.
 package config
 
 import (
@@ -9,7 +12,7 @@ import (
 	"github.com/spf13/viper"
 )
 
-// Config represents the main configuration structure
+// Config represents the main configuration structure.
 type Config struct {
 	Server      ServerConfig              `mapstructure:"server"`
 	Providers   map[string]ProviderConfig `mapstructure:"providers"`
@@ -20,7 +23,7 @@ type Config struct {
 	Development DevelopmentConfig         `mapstructure:"development"`
 }
 
-// ServerConfig holds server-specific configuration
+// ServerConfig holds server-specific configuration.
 type ServerConfig struct {
 	Host         string        `mapstructure:"host"`
 	Port         int           `mapstructure:"port"`
@@ -33,14 +36,14 @@ type ServerConfig struct {
 	TLSKeyFile   string        `mapstructure:"tls_key_file"`
 }
 
-// ProviderConfig holds configuration for HSM providers
+// ProviderConfig holds configuration for HSM providers.
 type ProviderConfig struct {
 	Type    string                 `mapstructure:"type"`
 	Enabled bool                   `mapstructure:"enabled"`
 	Config  map[string]interface{} `mapstructure:"config"`
 }
 
-// LoggingConfig holds logging configuration
+// LoggingConfig holds logging configuration.
 type LoggingConfig struct {
 	Level      string `mapstructure:"level"`
 	Format     string `mapstructure:"format"` // json, text
@@ -52,7 +55,7 @@ type LoggingConfig struct {
 	Compress   bool   `mapstructure:"compress"`
 }
 
-// MetricsConfig holds metrics configuration
+// MetricsConfig holds metrics configuration.
 type MetricsConfig struct {
 	Enabled    bool             `mapstructure:"enabled"`
 	Path       string           `mapstructure:"path"`
@@ -61,14 +64,14 @@ type MetricsConfig struct {
 	Prometheus PrometheusConfig `mapstructure:"prometheus"`
 }
 
-// PrometheusConfig holds Prometheus-specific metrics configuration
+// PrometheusConfig holds Prometheus-specific metrics configuration.
 type PrometheusConfig struct {
 	Enabled   bool   `mapstructure:"enabled"`
 	Namespace string `mapstructure:"namespace"`
 	Subsystem string `mapstructure:"subsystem"`
 }
 
-// AuditConfig holds audit logging configuration
+// AuditConfig holds audit logging configuration.
 type AuditConfig struct {
 	Enabled       bool                   `mapstructure:"enabled"`
 	BufferSize    int                    `mapstructure:"buffer_size"`
@@ -77,7 +80,7 @@ type AuditConfig struct {
 	Config        map[string]interface{} `mapstructure:"config"`
 }
 
-// SecurityConfig holds security-related configuration
+// SecurityConfig holds security-related configuration.
 type SecurityConfig struct {
 	EnableTLS     bool            `mapstructure:"enable_tls"`
 	TLSMinVersion string          `mapstructure:"tls_min_version"`
@@ -87,7 +90,7 @@ type SecurityConfig struct {
 	CORS          CORSConfig      `mapstructure:"cors"`
 }
 
-// JWTAuthConfig holds JWT authentication configuration
+// JWTAuthConfig holds JWT authentication configuration.
 type JWTAuthConfig struct {
 	Enabled    bool          `mapstructure:"enabled"`
 	Secret     string        `mapstructure:"secret"`
@@ -96,7 +99,7 @@ type JWTAuthConfig struct {
 	Issuer     string        `mapstructure:"issuer"`
 }
 
-// RateLimitConfig holds rate limiting configuration
+// RateLimitConfig holds rate limiting configuration.
 type RateLimitConfig struct {
 	Enabled           bool          `mapstructure:"enabled"`
 	RequestsPerSecond float64       `mapstructure:"requests_per_second"`
@@ -259,38 +262,39 @@ func LoadConfig(configPath string) (*Config, error) {
 // setEnvironmentMappings sets up environment variable mappings for viper
 func setEnvironmentMappings() {
 	// Server configuration
-	viper.BindEnv("server.host", "KEYGRID_HSM_SERVER_HOST")
-	viper.BindEnv("server.port", "KEYGRID_HSM_SERVER_PORT")
-	viper.BindEnv("server.grpc_port", "KEYGRID_HSM_SERVER_GRPC_PORT")
-	viper.BindEnv("server.tls_enabled", "KEYGRID_HSM_SERVER_TLS_ENABLED")
-	viper.BindEnv("server.tls_cert_file", "KEYGRID_HSM_SERVER_TLS_CERT_FILE")
-	viper.BindEnv("server.tls_key_file", "KEYGRID_HSM_SERVER_TLS_KEY_FILE")
+	// Server configuration environment variables
+	_ = viper.BindEnv("server.host", "KEYGRID_HSM_SERVER_HOST")
+	_ = viper.BindEnv("server.port", "KEYGRID_HSM_SERVER_PORT")
+	_ = viper.BindEnv("server.grpc_port", "KEYGRID_HSM_SERVER_GRPC_PORT")
+	_ = viper.BindEnv("server.tls_enabled", "KEYGRID_HSM_SERVER_TLS_ENABLED")
+	_ = viper.BindEnv("server.tls_cert_file", "KEYGRID_HSM_SERVER_TLS_CERT_FILE")
+	_ = viper.BindEnv("server.tls_key_file", "KEYGRID_HSM_SERVER_TLS_KEY_FILE")
 
-	// Logging configuration
-	viper.BindEnv("logging.level", "KEYGRID_HSM_LOG_LEVEL")
-	viper.BindEnv("logging.format", "KEYGRID_HSM_LOG_FORMAT")
-	viper.BindEnv("logging.output", "KEYGRID_HSM_LOG_OUTPUT")
-	viper.BindEnv("logging.file_path", "KEYGRID_HSM_LOG_FILE_PATH")
+	// Logging configuration environment variables
+	_ = viper.BindEnv("logging.level", "KEYGRID_HSM_LOG_LEVEL")
+	_ = viper.BindEnv("logging.format", "KEYGRID_HSM_LOG_FORMAT")
+	_ = viper.BindEnv("logging.output", "KEYGRID_HSM_LOG_OUTPUT")
+	_ = viper.BindEnv("logging.file_path", "KEYGRID_HSM_LOG_FILE_PATH")
 
 	// Metrics configuration
-	viper.BindEnv("metrics.enabled", "KEYGRID_HSM_METRICS_ENABLED")
-	viper.BindEnv("metrics.port", "KEYGRID_HSM_METRICS_PORT")
-	viper.BindEnv("metrics.prometheus.enabled", "KEYGRID_HSM_PROMETHEUS_ENABLED")
+	_ = viper.BindEnv("metrics.enabled", "KEYGRID_HSM_METRICS_ENABLED")
+	_ = viper.BindEnv("metrics.port", "KEYGRID_HSM_METRICS_PORT")
+	_ = viper.BindEnv("metrics.prometheus.enabled", "KEYGRID_HSM_PROMETHEUS_ENABLED")
 
 	// Audit configuration
-	viper.BindEnv("audit.enabled", "KEYGRID_HSM_AUDIT_ENABLED")
-	viper.BindEnv("audit.backend", "KEYGRID_HSM_AUDIT_BACKEND")
+	_ = viper.BindEnv("audit.enabled", "KEYGRID_HSM_AUDIT_ENABLED")
+	_ = viper.BindEnv("audit.backend", "KEYGRID_HSM_AUDIT_BACKEND")
 
 	// Security configuration
-	viper.BindEnv("security.enable_tls", "KEYGRID_HSM_SECURITY_ENABLE_TLS")
-	viper.BindEnv("security.api_key_auth", "KEYGRID_HSM_SECURITY_API_KEY_AUTH")
-	viper.BindEnv("security.jwt_auth.enabled", "KEYGRID_HSM_SECURITY_JWT_AUTH_ENABLED")
-	viper.BindEnv("security.jwt_auth.secret", "KEYGRID_HSM_SECURITY_JWT_AUTH_SECRET")
+	_ = viper.BindEnv("security.enable_tls", "KEYGRID_HSM_SECURITY_ENABLE_TLS")
+	_ = viper.BindEnv("security.api_key_auth", "KEYGRID_HSM_SECURITY_API_KEY_AUTH")
+	_ = viper.BindEnv("security.jwt_auth.enabled", "KEYGRID_HSM_SECURITY_JWT_AUTH_ENABLED")
+	_ = viper.BindEnv("security.jwt_auth.secret", "KEYGRID_HSM_SECURITY_JWT_AUTH_SECRET")
 
 	// Development configuration
-	viper.BindEnv("development.enabled", "KEYGRID_HSM_DEVELOPMENT_ENABLED")
-	viper.BindEnv("development.debug_mode", "KEYGRID_HSM_DEVELOPMENT_DEBUG_MODE")
-	viper.BindEnv("development.mock_providers", "KEYGRID_HSM_DEVELOPMENT_MOCK_PROVIDERS")
+	_ = viper.BindEnv("development.enabled", "KEYGRID_HSM_DEVELOPMENT_ENABLED")
+	_ = viper.BindEnv("development.debug_mode", "KEYGRID_HSM_DEVELOPMENT_DEBUG_MODE")
+	_ = viper.BindEnv("development.mock_providers", "KEYGRID_HSM_DEVELOPMENT_MOCK_PROVIDERS")
 }
 
 // Validate validates the configuration

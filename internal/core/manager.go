@@ -1,3 +1,5 @@
+// Package core provides the central orchestration layer for HSM operations,
+// including provider management, metrics, and audit logging.
 package core
 
 import (
@@ -83,7 +85,7 @@ func (m *HSMManager) GetClient(ctx context.Context, providerName string, config 
 			WithOperation("get_client")
 
 		if m.auditor != nil {
-			m.auditor.LogEvent(ctx, models.AuditEvent{
+			_ = m.auditor.LogEvent(ctx, models.AuditEvent{
 				ID:        uuid.New().String(),
 				Timestamp: time.Now(),
 				Operation: "get_client",
@@ -106,7 +108,7 @@ func (m *HSMManager) GetClient(ctx context.Context, providerName string, config 
 	m.clientsMux[providerName] = &clientMutex{client: client}
 
 	if m.auditor != nil {
-		m.auditor.LogEvent(ctx, models.AuditEvent{
+		_ = m.auditor.LogEvent(ctx, models.AuditEvent{
 			ID:        uuid.New().String(),
 			Timestamp: time.Now(),
 			Operation: "get_client",
@@ -140,7 +142,7 @@ func (m *HSMManager) GenerateKey(ctx context.Context, providerName string, provi
 			WithOperation("generate_key")
 
 		if m.auditor != nil {
-			m.auditor.LogEvent(ctx, models.AuditEvent{
+			_ = m.auditor.LogEvent(ctx, models.AuditEvent{
 				ID:        uuid.New().String(),
 				Timestamp: time.Now(),
 				Operation: "generate_key",
@@ -163,7 +165,7 @@ func (m *HSMManager) GenerateKey(ctx context.Context, providerName string, provi
 	}
 
 	if m.auditor != nil {
-		m.auditor.LogEvent(ctx, models.AuditEvent{
+		_ = m.auditor.LogEvent(ctx, models.AuditEvent{
 			ID:        uuid.New().String(),
 			Timestamp: time.Now(),
 			Operation: "generate_key",
@@ -211,7 +213,7 @@ func (m *HSMManager) Sign(ctx context.Context, providerName string, providerConf
 			WithOperation("sign")
 
 		if m.auditor != nil {
-			m.auditor.LogEvent(ctx, models.AuditEvent{
+			_ = m.auditor.LogEvent(ctx, models.AuditEvent{
 				ID:        uuid.New().String(),
 				Timestamp: time.Now(),
 				Operation: "sign",
@@ -231,7 +233,7 @@ func (m *HSMManager) Sign(ctx context.Context, providerName string, providerConf
 	}
 
 	if m.auditor != nil {
-		m.auditor.LogEvent(ctx, models.AuditEvent{
+		_ = m.auditor.LogEvent(ctx, models.AuditEvent{
 			ID:        uuid.New().String(),
 			Timestamp: time.Now(),
 			Operation: "sign",
@@ -255,152 +257,40 @@ func (m *HSMManager) Sign(ctx context.Context, providerName string, providerConf
 
 // Encrypt performs an encryption operation using the specified provider
 func (m *HSMManager) Encrypt(ctx context.Context, providerName string, providerConfig map[string]interface{}, request models.EncryptionRequest) (*models.EncryptionResponse, error) {
-	start := time.Now()
-
-	client, err := m.GetClient(ctx, providerName, providerConfig)
-	if err != nil {
-		return nil, err
-	}
-
-	response, err := client.Encrypt(ctx, request)
-	if err != nil {
-		hsmErr := models.NewHSMErrorWithCause(models.ErrCodeEncryptionFailed,
-			"Encryption operation failed", err).
-			WithProvider(providerName).
-			WithOperation("encrypt")
-
-		if m.auditor != nil {
-			m.auditor.LogEvent(ctx, models.AuditEvent{
-				ID:        uuid.New().String(),
-				Timestamp: time.Now(),
-				Operation: "encrypt",
-				Provider:  providerName,
-				KeyID:     request.KeyHandle,
-				Success:   false,
-				Error:     hsmErr.Error(),
-				Duration:  time.Since(start),
-			})
-		}
-
-		if m.metrics != nil {
-			m.metrics.RecordOperation("encrypt", providerName, time.Since(start), false, hsmErr)
-		}
-
-		return nil, hsmErr
-	}
-
-	if m.auditor != nil {
-		m.auditor.LogEvent(ctx, models.AuditEvent{
-			ID:        uuid.New().String(),
-			Timestamp: time.Now(),
-			Operation: "encrypt",
-			Provider:  providerName,
-			KeyID:     request.KeyHandle,
-			Success:   true,
-			Duration:  time.Since(start),
-			Metadata: map[string]string{
+	return executeWithClientAndReturn(m, ctx, providerName, providerConfig, "encrypt", request.KeyHandle,
+		func(client models.HSMClient) (*models.EncryptionResponse, error) {
+			return client.Encrypt(ctx, request)
+		},
+		func(response *models.EncryptionResponse) map[string]string {
+			return map[string]string{
 				"algorithm":       response.Algorithm,
 				"plaintext_size":  fmt.Sprintf("%d", len(request.Plaintext)),
 				"ciphertext_size": fmt.Sprintf("%d", len(response.Ciphertext)),
-			},
+			}
 		})
-	}
-
-	if m.metrics != nil {
-		m.metrics.RecordOperation("encrypt", providerName, time.Since(start), true, nil)
-	}
-
-	return response, nil
 }
 
 // Decrypt performs a decryption operation using the specified provider
 func (m *HSMManager) Decrypt(ctx context.Context, providerName string, providerConfig map[string]interface{}, request models.DecryptionRequest) (*models.DecryptionResponse, error) {
-	start := time.Now()
-
-	client, err := m.GetClient(ctx, providerName, providerConfig)
-	if err != nil {
-		return nil, err
-	}
-
-	response, err := client.Decrypt(ctx, request)
-	if err != nil {
-		hsmErr := models.NewHSMErrorWithCause(models.ErrCodeDecryptionFailed,
-			"Decryption operation failed", err).
-			WithProvider(providerName).
-			WithOperation("decrypt")
-
-		if m.auditor != nil {
-			m.auditor.LogEvent(ctx, models.AuditEvent{
-				ID:        uuid.New().String(),
-				Timestamp: time.Now(),
-				Operation: "decrypt",
-				Provider:  providerName,
-				KeyID:     request.KeyHandle,
-				Success:   false,
-				Error:     hsmErr.Error(),
-				Duration:  time.Since(start),
-			})
-		}
-
-		if m.metrics != nil {
-			m.metrics.RecordOperation("decrypt", providerName, time.Since(start), false, hsmErr)
-		}
-
-		return nil, hsmErr
-	}
-
-	if m.auditor != nil {
-		m.auditor.LogEvent(ctx, models.AuditEvent{
-			ID:        uuid.New().String(),
-			Timestamp: time.Now(),
-			Operation: "decrypt",
-			Provider:  providerName,
-			KeyID:     request.KeyHandle,
-			Success:   true,
-			Duration:  time.Since(start),
-			Metadata: map[string]string{
+	return executeWithClientAndReturn(m, ctx, providerName, providerConfig, "decrypt", request.KeyHandle,
+		func(client models.HSMClient) (*models.DecryptionResponse, error) {
+			return client.Decrypt(ctx, request)
+		},
+		func(response *models.DecryptionResponse) map[string]string {
+			return map[string]string{
 				"algorithm":       response.Algorithm,
 				"ciphertext_size": fmt.Sprintf("%d", len(request.Ciphertext)),
 				"plaintext_size":  fmt.Sprintf("%d", len(response.Plaintext)),
-			},
+			}
 		})
-	}
-
-	if m.metrics != nil {
-		m.metrics.RecordOperation("decrypt", providerName, time.Since(start), true, nil)
-	}
-
-	return response, nil
 }
 
-// GetPublicKey retrieves the public key for a given key handle
+// GetPublicKey retrieves the public key for a given key handle from the specified provider
 func (m *HSMManager) GetPublicKey(ctx context.Context, providerName string, providerConfig map[string]interface{}, keyHandle string) (crypto.PublicKey, error) {
-	start := time.Now()
-
-	client, err := m.GetClient(ctx, providerName, providerConfig)
-	if err != nil {
-		return nil, err
-	}
-
-	publicKey, err := client.GetPublicKey(ctx, keyHandle)
-	if err != nil {
-		hsmErr := models.NewHSMErrorWithCause(models.ErrCodeKeyNotFound,
-			"Failed to retrieve public key", err).
-			WithProvider(providerName).
-			WithOperation("get_public_key")
-
-		if m.metrics != nil {
-			m.metrics.RecordOperation("get_public_key", providerName, time.Since(start), false, hsmErr)
-		}
-
-		return nil, hsmErr
-	}
-
-	if m.metrics != nil {
-		m.metrics.RecordOperation("get_public_key", providerName, time.Since(start), true, nil)
-	}
-
-	return publicKey, nil
+	return executeWithClientAndReturn(m, ctx, providerName, providerConfig, "get_public_key", keyHandle,
+		func(client models.HSMClient) (crypto.PublicKey, error) {
+			return client.GetPublicKey(ctx, keyHandle)
+		}, nil)
 }
 
 // ListKeys lists all keys for a given provider
@@ -470,32 +360,10 @@ func (m *HSMManager) CheckHealth(ctx context.Context, providerName string, provi
 
 // GetKey retrieves a key handle by its ID from the specified provider
 func (m *HSMManager) GetKey(ctx context.Context, providerName string, providerConfig map[string]interface{}, keyID string) (*models.KeyHandle, error) {
-	start := time.Now()
-
-	client, err := m.GetClient(ctx, providerName, providerConfig)
-	if err != nil {
-		return nil, err
-	}
-
-	keyHandle, err := client.GetKey(ctx, keyID)
-	if err != nil {
-		hsmErr := models.NewHSMErrorWithCause(models.ErrCodeKeyNotFound,
-			"Failed to retrieve key", err).
-			WithProvider(providerName).
-			WithOperation("get_key")
-
-		if m.metrics != nil {
-			m.metrics.RecordOperation("get_key", providerName, time.Since(start), false, hsmErr)
-		}
-
-		return nil, hsmErr
-	}
-
-	if m.metrics != nil {
-		m.metrics.RecordOperation("get_key", providerName, time.Since(start), true, nil)
-	}
-
-	return keyHandle, nil
+	return executeWithClientAndReturn(m, ctx, providerName, providerConfig, "get_key", keyID,
+		func(client models.HSMClient) (*models.KeyHandle, error) {
+			return client.GetKey(ctx, keyID)
+		}, nil)
 }
 
 // DeleteKey deletes a key from the specified provider
@@ -515,7 +383,7 @@ func (m *HSMManager) DeleteKey(ctx context.Context, providerName string, provide
 			WithOperation("delete_key")
 
 		if m.auditor != nil {
-			m.auditor.LogEvent(ctx, models.AuditEvent{
+			_ = m.auditor.LogEvent(ctx, models.AuditEvent{
 				ID:        uuid.New().String(),
 				Timestamp: time.Now(),
 				Operation: "delete_key",
@@ -535,7 +403,7 @@ func (m *HSMManager) DeleteKey(ctx context.Context, providerName string, provide
 	}
 
 	if m.auditor != nil {
-		m.auditor.LogEvent(ctx, models.AuditEvent{
+		_ = m.auditor.LogEvent(ctx, models.AuditEvent{
 			ID:        uuid.New().String(),
 			Timestamp: time.Now(),
 			Operation: "delete_key",
@@ -561,62 +429,16 @@ func (m *HSMManager) DeleteKey(ctx context.Context, providerName string, provide
 
 // ActivateKey activates a key in the specified provider
 func (m *HSMManager) ActivateKey(ctx context.Context, providerName string, providerConfig map[string]interface{}, keyID string) error {
-	start := time.Now()
-
-	client, err := m.GetClient(ctx, providerName, providerConfig)
-	if err != nil {
-		return err
-	}
-
-	err = client.ActivateKey(ctx, keyID)
-	if err != nil {
-		hsmErr := models.NewHSMErrorWithCause(models.ErrCodeKeyActivationFailed,
-			"Failed to activate key", err).
-			WithProvider(providerName).
-			WithOperation("activate_key")
-
-		if m.metrics != nil {
-			m.metrics.RecordOperation("activate_key", providerName, time.Since(start), false, hsmErr)
-		}
-
-		return hsmErr
-	}
-
-	if m.metrics != nil {
-		m.metrics.RecordOperation("activate_key", providerName, time.Since(start), true, nil)
-	}
-
-	return nil
+	return m.executeWithClient(ctx, providerName, providerConfig, "activate_key", keyID, func(client models.HSMClient) error {
+		return client.ActivateKey(ctx, keyID)
+	})
 }
 
 // DeactivateKey deactivates a key in the specified provider
 func (m *HSMManager) DeactivateKey(ctx context.Context, providerName string, providerConfig map[string]interface{}, keyID string) error {
-	start := time.Now()
-
-	client, err := m.GetClient(ctx, providerName, providerConfig)
-	if err != nil {
-		return err
-	}
-
-	err = client.DeactivateKey(ctx, keyID)
-	if err != nil {
-		hsmErr := models.NewHSMErrorWithCause(models.ErrCodeKeyDeactivationFailed,
-			"Failed to deactivate key", err).
-			WithProvider(providerName).
-			WithOperation("deactivate_key")
-
-		if m.metrics != nil {
-			m.metrics.RecordOperation("deactivate_key", providerName, time.Since(start), false, hsmErr)
-		}
-
-		return hsmErr
-	}
-
-	if m.metrics != nil {
-		m.metrics.RecordOperation("deactivate_key", providerName, time.Since(start), true, nil)
-	}
-
-	return nil
+	return m.executeWithClient(ctx, providerName, providerConfig, "deactivate_key", keyID, func(client models.HSMClient) error {
+		return client.DeactivateKey(ctx, keyID)
+	})
 }
 
 // Verify performs a signature verification operation using the specified provider
@@ -673,7 +495,7 @@ func (m *HSMManager) SetKeyExpiration(ctx context.Context, providerName string, 
 	}
 
 	if m.auditor != nil {
-		m.auditor.LogEvent(ctx, models.AuditEvent{
+		_ = m.auditor.LogEvent(ctx, models.AuditEvent{
 			ID:        uuid.New().String(),
 			Timestamp: time.Now(),
 			Operation: "set_key_expiration",
@@ -703,6 +525,138 @@ func (m *HSMManager) CheckProviderHealth(ctx context.Context, providerName strin
 // ListProviders returns a list of registered provider names
 func (m *HSMManager) ListProviders() []string {
 	return m.registry.ListProviders()
+}
+
+// operationWrapper wraps HSM operations with common error handling, metrics, and audit logging.
+type operationWrapper struct {
+	manager      *HSMManager
+	ctx          context.Context
+	providerName string
+	operation    string
+	keyID        string
+	start        time.Time
+}
+
+// newOperationWrapper creates a new operation wrapper.
+func (m *HSMManager) newOperationWrapper(ctx context.Context, providerName, operation, keyID string) *operationWrapper {
+	return &operationWrapper{
+		manager:      m,
+		ctx:          ctx,
+		providerName: providerName,
+		operation:    operation,
+		keyID:        keyID,
+		start:        time.Now(),
+	}
+}
+
+// handleError handles operation errors with audit logging and metrics.
+func (w *operationWrapper) handleError(err error, errorCode string, message string) error {
+	hsmErr := models.NewHSMErrorWithCause(errorCode, message, err).
+		WithProvider(w.providerName).
+		WithOperation(w.operation)
+
+	if w.manager.auditor != nil {
+		_ = w.manager.auditor.LogEvent(w.ctx, models.AuditEvent{
+			ID:        uuid.New().String(),
+			Timestamp: time.Now(),
+			Operation: w.operation,
+			Provider:  w.providerName,
+			KeyID:     w.keyID,
+			Success:   false,
+			Error:     hsmErr.Error(),
+			Duration:  time.Since(w.start),
+		})
+	}
+
+	if w.manager.metrics != nil {
+		w.manager.metrics.RecordOperation(w.operation, w.providerName, time.Since(w.start), false, hsmErr)
+	}
+
+	return hsmErr
+}
+
+// handleSuccess handles successful operations with audit logging and metrics.
+func (w *operationWrapper) handleSuccess(metadata map[string]string) {
+	if w.manager.auditor != nil {
+		_ = w.manager.auditor.LogEvent(w.ctx, models.AuditEvent{
+			ID:        uuid.New().String(),
+			Timestamp: time.Now(),
+			Operation: w.operation,
+			Provider:  w.providerName,
+			KeyID:     w.keyID,
+			Success:   true,
+			Duration:  time.Since(w.start),
+			Metadata:  metadata,
+		})
+	}
+
+	if w.manager.metrics != nil {
+		w.manager.metrics.RecordOperation(w.operation, w.providerName, time.Since(w.start), true, nil)
+	}
+}
+
+// executeWithClient executes an operation function with a client, handling common patterns.
+func (m *HSMManager) executeWithClient(ctx context.Context, providerName string, providerConfig map[string]interface{}, operation string, keyID string, fn func(models.HSMClient) error) error {
+	wrapper := m.newOperationWrapper(ctx, providerName, operation, keyID)
+	
+	client, err := m.GetClient(ctx, providerName, providerConfig)
+	if err != nil {
+		return err
+	}
+
+	if err := fn(client); err != nil {
+		return wrapper.handleError(err, getErrorCodeForOperation(operation), fmt.Sprintf("%s operation failed", operation))
+	}
+
+	wrapper.handleSuccess(nil)
+	return nil
+}
+
+// executeWithClientAndReturn executes an operation function that returns a value.
+func executeWithClientAndReturn[T any](m *HSMManager, ctx context.Context, providerName string, providerConfig map[string]interface{}, operation string, keyID string, fn func(models.HSMClient) (T, error), metadata func(T) map[string]string) (T, error) {
+	wrapper := m.newOperationWrapper(ctx, providerName, operation, keyID)
+	var zero T
+	
+	client, err := m.GetClient(ctx, providerName, providerConfig)
+	if err != nil {
+		return zero, err
+	}
+
+	result, err := fn(client)
+	if err != nil {
+		return zero, wrapper.handleError(err, getErrorCodeForOperation(operation), fmt.Sprintf("%s operation failed", operation))
+	}
+
+	var metadataMap map[string]string
+	if metadata != nil {
+		metadataMap = metadata(result)
+	}
+	wrapper.handleSuccess(metadataMap)
+	return result, nil
+}
+
+// getErrorCodeForOperation returns the appropriate error code for an operation.
+func getErrorCodeForOperation(operation string) string {
+	switch operation {
+	case "activate_key":
+		return models.ErrCodeKeyActivationFailed
+	case "deactivate_key":
+		return models.ErrCodeKeyDeactivationFailed
+	case "delete_key":
+		return models.ErrCodeKeyDeletionFailed
+	case "encrypt":
+		return models.ErrCodeEncryptionFailed
+	case "decrypt":
+		return models.ErrCodeDecryptionFailed
+	case "sign":
+		return models.ErrCodeSigningFailed
+	case "verify":
+		return models.ErrCodeVerificationFailed
+	case "get_key", "get_public_key":
+		return models.ErrCodeKeyNotFound
+	default:
+		return models.ErrCodeUnknown
+	}
 }
 
 // Close closes all HSM clients

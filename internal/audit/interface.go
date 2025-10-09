@@ -1,3 +1,5 @@
+// Package audit provides audit logging functionality for security
+// and compliance requirements in the KeyGrid HSM system.
 package audit
 
 import (

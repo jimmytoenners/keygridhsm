@@ -1,3 +1,5 @@
+// Package providers contains HSM provider implementations for various
+// backends including Azure Key Vault, custom storage, and mock HSM.
 package providers
 
 import (
@@ -15,8 +17,9 @@ import (
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore/to"
 	"github.com/Azure/azure-sdk-for-go/sdk/azidentity"
 	"github.com/Azure/azure-sdk-for-go/sdk/security/keyvault/azkeys"
-	"github.com/jimmy/keygridhsm/pkg/models"
 	"github.com/sirupsen/logrus"
+
+	"github.com/jimmy/keygridhsm/pkg/models"
 )
 
 const (
@@ -114,8 +117,8 @@ func (p *AzureKeyVaultProvider) CreateClient(config map[string]interface{}) (mod
 			WithProvider(AzureKeyVaultProviderName)
 	}
 
-	if err := p.ValidateConfig(config); err != nil {
-		return nil, err
+	if validationErr := p.ValidateConfig(config); validationErr != nil {
+		return nil, validationErr
 	}
 
 	// Create Azure credential
@@ -907,9 +910,6 @@ func ptrBool(v bool) *bool {
 	return &v
 }
 
-func ptrString(v string) *string {
-	return &v
-}
 
 func ptrTime(v time.Time) *time.Time {
 	return &v

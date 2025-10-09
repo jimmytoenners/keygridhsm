@@ -105,7 +105,10 @@ func (s *HTTPServer) healthCheckHandler(w http.ResponseWriter, r *http.Request) 
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	if err := json.NewEncoder(w).Encode(response); err != nil {
+		s.writeError(w, http.StatusInternalServerError, fmt.Sprintf("Failed to encode response: %v", err))
+		return
+	}
 }
 
 // listProvidersHandler handles listing available providers
@@ -123,7 +126,10 @@ func (s *HTTPServer) listProvidersHandler(w http.ResponseWriter, r *http.Request
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	if err := json.NewEncoder(w).Encode(response); err != nil {
+		s.writeError(w, http.StatusInternalServerError, fmt.Sprintf("Failed to encode response: %v", err))
+		return
+	}
 }
 
 // providerHealthHandler checks provider health
@@ -148,7 +154,10 @@ func (s *HTTPServer) providerHealthHandler(w http.ResponseWriter, r *http.Reques
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	if err := json.NewEncoder(w).Encode(response); err != nil {
+		s.writeError(w, http.StatusInternalServerError, fmt.Sprintf("Failed to encode response: %v", err))
+		return
+	}
 }
 
 // generateKeyHandler handles key generation requests
@@ -186,7 +195,10 @@ func (s *HTTPServer) generateKeyHandler(w http.ResponseWriter, r *http.Request) 
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(keyHandle)
+	if err := json.NewEncoder(w).Encode(keyHandle); err != nil {
+		s.writeError(w, http.StatusInternalServerError, fmt.Sprintf("Failed to encode key handle: %v", err))
+		return
+	}
 }
 
 // listKeysHandler handles key listing requests
@@ -216,7 +228,10 @@ func (s *HTTPServer) listKeysHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	if err := json.NewEncoder(w).Encode(response); err != nil {
+		s.writeError(w, http.StatusInternalServerError, fmt.Sprintf("Failed to encode response: %v", err))
+		return
+	}
 }
 
 // getKeyHandler handles key retrieval requests
@@ -240,7 +255,10 @@ func (s *HTTPServer) getKeyHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(keyHandle)
+	if err := json.NewEncoder(w).Encode(keyHandle); err != nil {
+		s.writeError(w, http.StatusInternalServerError, fmt.Sprintf("Failed to encode key handle: %v", err))
+		return
+	}
 }
 
 // signHandler handles signing requests
@@ -274,7 +292,10 @@ func (s *HTTPServer) signHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	if err := json.NewEncoder(w).Encode(response); err != nil {
+		s.writeError(w, http.StatusInternalServerError, fmt.Sprintf("Failed to encode response: %v", err))
+		return
+	}
 }
 
 // verifyHandler handles signature verification requests
@@ -309,7 +330,10 @@ func (s *HTTPServer) verifyHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	if err := json.NewEncoder(w).Encode(response); err != nil {
+		s.writeError(w, http.StatusInternalServerError, fmt.Sprintf("Failed to encode response: %v", err))
+		return
+	}
 }
 
 // encryptHandler handles encryption requests
@@ -351,7 +375,10 @@ func (s *HTTPServer) activateKeyHandler(w http.ResponseWriter, r *http.Request) 
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	if err := json.NewEncoder(w).Encode(response); err != nil {
+		s.writeError(w, http.StatusInternalServerError, fmt.Sprintf("Failed to encode response: %v", err))
+		return
+	}
 }
 
 // deactivateKeyHandler handles key deactivation requests
@@ -381,7 +408,10 @@ func (s *HTTPServer) deactivateKeyHandler(w http.ResponseWriter, r *http.Request
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	if err := json.NewEncoder(w).Encode(response); err != nil {
+		s.writeError(w, http.StatusInternalServerError, fmt.Sprintf("Failed to encode response: %v", err))
+		return
+	}
 }
 
 // deleteKeyHandler handles key deletion requests

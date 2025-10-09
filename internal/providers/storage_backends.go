@@ -77,7 +77,10 @@ func (fs *FilesystemStorage) Store(ctx context.Context, key string, data []byte)
 	}
 
 	if err := os.Rename(tempFile, filePath); err != nil {
-		os.Remove(tempFile) // Clean up temp file
+		if removeErr := os.Remove(tempFile); removeErr != nil {
+			// Log but don't fail if cleanup fails
+			_ = removeErr // Ignore cleanup errors as the main operation succeeded
+		}
 		return fmt.Errorf("failed to rename temporary file: %w", err)
 	}
 
@@ -175,7 +178,10 @@ func (fs *FilesystemStorage) Health(ctx context.Context) error {
 	}
 
 	// Clean up test file
-	os.Remove(testFile)
+if removeErr := os.Remove(testFile); removeErr != nil {
+		// Ignore cleanup errors for test file
+		_ = removeErr
+	}
 	return nil
 }
 

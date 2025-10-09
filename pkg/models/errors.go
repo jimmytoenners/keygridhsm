@@ -1,3 +1,5 @@
+// Package models defines the core data structures and error types
+// used throughout the KeyGrid HSM system.
 package models
 
 import (
