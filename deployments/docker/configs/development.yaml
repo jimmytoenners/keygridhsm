@@ -1,0 +1,108 @@
+# KeyGrid HSM - Development Configuration
+
+server:
+  port: 8080
+  host: "0.0.0.0"
+  log_level: "debug"
+  read_timeout: "30s"
+  write_timeout: "30s"
+  idle_timeout: "120s"
+  
+  # TLS disabled for development
+  tls:
+    enabled: false
+    
+  # Security relaxed for development
+  security:
+    cors_enabled: true
+    cors_origins: ["*"]
+    rate_limiting:
+      enabled: false
+
+# HSM Provider Configurations for Development
+providers:
+  # Mock HSM - primary for development
+  mock-hsm:
+    enabled: true
+    config:
+      persistent_storage: false
+      simulate_errors: false
+      simulate_latency_ms: 0
+      max_keys: 1000
+      key_prefix: "dev-mock"
+      test_scenarios: []  # No error scenarios in development
+      
+  # Custom Storage Provider - filesystem for development
+  custom-storage:
+    enabled: true
+    config:
+      storage_type: "memory"  # Use memory for fast development
+      encrypt_at_rest: false   # Disable encryption for simplicity
+      key_prefix: "dev-custom"
+      
+  # Azure KeyVault - disabled by default for development
+  azure-keyvault:
+    enabled: false  # Enable only when Azure credentials are configured
+    config:
+      vault_url_env: "AZURE_KEYVAULT_URL"
+      use_cli: true  # Use Azure CLI for development
+
+# Logging Configuration
+logging:
+  level: "debug"
+  format: "text"  # Human-readable for development
+  output: "stdout"
+
+# Metrics Configuration
+metrics:
+  enabled: true
+  path: "/metrics"
+  
+  # Prometheus configuration
+  prometheus:
+    enabled: true
+    namespace: "keygrid_hsm_dev"
+
+# Health Check Configuration
+health:
+  path: "/health"
+  ready_path: "/ready"
+  
+  # Provider health check settings
+  provider_checks:
+    enabled: true
+    timeout: "5s"
+    interval: "10s"  # More frequent checks in development
+
+# Audit Logging - simplified for development
+audit:
+  enabled: true
+  destination: "stdout"  # Log to console for development
+  
+  # Events to audit
+  events:
+    - "key_generate"
+    - "key_delete"
+    - "key_sign"
+    - "authentication_failure"
+
+# Security Configuration - relaxed for development
+security:
+  # API Authentication disabled for development
+  authentication:
+    method: "none"
+    
+  # Rate limiting disabled
+  rate_limit:
+    enabled: false
+
+# Environment-specific overrides
+environment: "development"
+
+# Feature flags - enable all features for testing
+features:
+  key_import: true
+  key_export: true
+  bulk_operations: true
+  key_backup: true
+  debug_endpoints: true  # Enable debug endpoints for development
