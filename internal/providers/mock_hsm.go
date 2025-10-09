@@ -12,7 +12,6 @@ import (
 	"encoding/asn1"
 	"fmt"
 	"math/big"
-	mathrand "math/rand"
 	"sync"
 	"time"
 
@@ -802,9 +801,14 @@ func (c *MockHSMClient) checkTestScenarios(ctx context.Context, operation string
 	// Check if any test scenarios should trigger for this operation
 	for _, scenarioName := range c.config.TestScenarios {
 		if scenario, exists := TestScenarios[scenarioName]; exists {
-			// For simplicity, trigger scenarios randomly (in a real implementation,
-			// you might want more sophisticated triggering logic)
-			if mathrand.Intn(100) < 10 { // 10% chance to trigger
+			// Use crypto/rand for security-sensitive randomness instead of math/rand
+			randomBytes := make([]byte, 1)
+			if _, err := rand.Read(randomBytes); err != nil {
+				c.logger.WithError(err).Warn("Failed to generate secure random number for test scenarios")
+				continue
+			}
+			// 10% chance to trigger (randomByte < 26 out of 256 possible values ≈ 10%)
+			if randomBytes[0] < 26 {
 				return scenario.Handler(ctx, c, operation)
 			}
 		}
