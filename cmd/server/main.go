@@ -1,3 +1,4 @@
+// Package main provides the KeyGrid HSM server command-line application.
 package main
 
 import (

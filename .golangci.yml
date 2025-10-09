@@ -5,26 +5,20 @@ run:
   timeout: 5m
   issues-exit-code: 1
   tests: true
-  skip-dirs:
-    - vendor/
-    - build/
-    - dist/
-  skip-files:
-    - ".*\\.pb\\.go$"
-    - ".*_test\\.go$" # Skip test files for some linters
+  go: "1.23"
 
 output:
-  format: colored-line-number
+  formats:
+    - format: colored-line-number
   print-issued-lines: true
   print-linter-name: true
-  uniq-by-line: true
 
 linters-settings:
   govet:
-    check-shadowing: true
     enable-all: true
     disable:
       - fieldalignment # Can be noisy for business logic
+      - shadow # Use shadow linter instead
   
   golint:
     min-confidence: 0.8
@@ -78,11 +72,9 @@ linters-settings:
       - "check interfaces"
   
   staticcheck:
-    go: "1.23"
     checks: ["all"]
   
   stylecheck:
-    go: "1.23"
     checks: ["all"]
   
   gosec:
@@ -104,12 +96,10 @@ linters-settings:
       - name: var-naming
       - name: package-comments
       - name: range-val-in-closure
-      - name: go-lint
       - name: unreachable-code
       - name: redefines-builtin-id
       - name: superfluous-else
       - name: unused-parameter
-      - name: unreachable-code
       - name: indent-error-flow
       - name: empty-block
       - name: unused-receiver
@@ -166,6 +156,14 @@ linters:
 
 issues:
   exclude-use-default: false
+  exclude-dirs:
+    - vendor/
+    - build/
+    - dist/
+  exclude-files:
+    - ".*\\.pb\\.go$"
+    - ".*_test\\.go$" # Skip test files for some linters
+  uniq-by-line: true
   exclude:
     # Exclude some staticcheck messages
     - "should have a package comment, unless it's in another file for this package"

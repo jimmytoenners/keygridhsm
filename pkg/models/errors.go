@@ -6,7 +6,7 @@ import (
 	"fmt"
 )
 
-// HSMError represents an HSM-specific error
+// HSMError represents an HSM-specific error.
 type HSMError struct {
 	Code      string                 `json:"code"`
 	Message   string                 `json:"message"`
@@ -27,22 +27,22 @@ func (e *HSMError) Unwrap() error {
 	return e.Cause
 }
 
-// Error codes
+// Error codes.
 const (
-	// General errors
+	// General errors.
 	ErrCodeUnknown             = "UNKNOWN"
 	ErrCodeInvalidInput        = "INVALID_INPUT"
 	ErrCodeInvalidConfig       = "INVALID_CONFIG"
 	ErrCodeProviderNotFound    = "PROVIDER_NOT_FOUND"
 	ErrCodeProviderUnavailable = "PROVIDER_UNAVAILABLE"
 
-	// Authentication and authorization errors
+	// Authentication and authorization errors.
 	ErrCodeAuthenticationFailed = "AUTHENTICATION_FAILED"
 	ErrCodeAuthorizationFailed  = "AUTHORIZATION_FAILED"
 	ErrCodeInvalidCredentials   = "INVALID_CREDENTIALS"
 	ErrCodeTokenExpired         = "TOKEN_EXPIRED"
 
-	// Key management errors
+	// Key management errors.
 	ErrCodeKeyNotFound           = "KEY_NOT_FOUND"
 	ErrCodeKeyAlreadyExists      = "KEY_ALREADY_EXISTS"
 	ErrCodeKeyGenerationFailed   = "KEY_GENERATION_FAILED"
@@ -56,7 +56,7 @@ const (
 	ErrCodeInvalidKeySpec        = "INVALID_KEY_SPEC"
 	ErrCodeInvalidKeyUsage       = "INVALID_KEY_USAGE"
 
-	// Cryptographic operation errors
+	// Cryptographic operation errors.
 	ErrCodeSigningFailed      = "SIGNING_FAILED"
 	ErrCodeVerificationFailed = "VERIFICATION_FAILED"
 	ErrCodeEncryptionFailed   = "ENCRYPTION_FAILED"
@@ -66,24 +66,24 @@ const (
 	ErrCodeInvalidSignature   = "INVALID_SIGNATURE"
 	ErrCodeInvalidAlgorithm   = "INVALID_ALGORITHM"
 
-	// Network and connectivity errors
+	// Network and connectivity errors.
 	ErrCodeNetworkError       = "NETWORK_ERROR"
 	ErrCodeTimeoutError       = "TIMEOUT_ERROR"
 	ErrCodeConnectionFailed   = "CONNECTION_FAILED"
 	ErrCodeServiceUnavailable = "SERVICE_UNAVAILABLE"
 
-	// Rate limiting and quota errors
+	// Rate limiting and quota errors.
 	ErrCodeRateLimitExceeded = "RATE_LIMIT_EXCEEDED"
 	ErrCodeQuotaExceeded     = "QUOTA_EXCEEDED"
 	ErrCodeTooManyRequests   = "TOO_MANY_REQUESTS"
 
-	// Provider-specific errors
+	// Provider-specific errors.
 	ErrCodeAzureKeyVaultError = "AZURE_KEYVAULT_ERROR"
 	ErrCodeCustomStorageError = "CUSTOM_STORAGE_ERROR"
 	ErrCodeMockHSMError       = "MOCK_HSM_ERROR"
 )
 
-// Predefined errors
+// Predefined errors.
 var (
 	ErrProviderNotRegistered = &HSMError{Code: ErrCodeProviderNotFound, Message: "HSM provider not registered"}
 	ErrInvalidConfiguration  = &HSMError{Code: ErrCodeInvalidConfig, Message: "Invalid provider configuration"}

@@ -105,7 +105,7 @@ type FileAuditLogger struct {
 
 // NewFileAuditLogger creates a new file-based audit logger
 func NewFileAuditLogger(filename string) (*FileAuditLogger, error) {
-	file, err := os.OpenFile(filename, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0600)
+	file, err := os.OpenFile(filename, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o600)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open audit log file: %w", err)
 	}
@@ -343,10 +343,10 @@ func (a *AuditManager) LogSecurityEvent(ctx context.Context, eventType EventType
 	}
 
 	// Extract context information if available
-	if userID := ctx.Value("user_id"); userID != nil {
+	if userID := ctx.Value(userIDKey); userID != nil {
 		event.UserID = fmt.Sprintf("%v", userID)
 	}
-	if clientIP := ctx.Value("client_ip"); clientIP != nil {
+	if clientIP := ctx.Value(clientIPKey); clientIP != nil {
 		event.ClientIP = fmt.Sprintf("%v", clientIP)
 	}
 
@@ -389,6 +389,18 @@ func generateEventID() string {
 	return fmt.Sprintf("audit_%d_%d", time.Now().UnixNano(), time.Now().Nanosecond()%10000)
 }
 
+// contextKey is a custom type for context keys to avoid collisions.
+type contextKey string
+
+// Context keys for audit information.
+const (
+	userIDKey    contextKey = "user_id"
+	sessionIDKey contextKey = "session_id"
+	requestIDKey contextKey = "request_id"
+	clientIPKey  contextKey = "client_ip"
+	userAgentKey contextKey = "user_agent"
+)
+
 // AuditContext provides audit context information
 type AuditContext struct {
 	UserID    string
@@ -411,10 +423,10 @@ func NewAuditContext(userID, sessionID, requestID, clientIP, userAgent string) *
 
 // WithAuditContext adds audit context to a Go context
 func WithAuditContext(ctx context.Context, auditCtx *AuditContext) context.Context {
-	ctx = context.WithValue(ctx, "user_id", auditCtx.UserID)
-	ctx = context.WithValue(ctx, "session_id", auditCtx.SessionID)
-	ctx = context.WithValue(ctx, "request_id", auditCtx.RequestID)
-	ctx = context.WithValue(ctx, "client_ip", auditCtx.ClientIP)
-	ctx = context.WithValue(ctx, "user_agent", auditCtx.UserAgent)
+	ctx = context.WithValue(ctx, userIDKey, auditCtx.UserID)
+	ctx = context.WithValue(ctx, sessionIDKey, auditCtx.SessionID)
+	ctx = context.WithValue(ctx, requestIDKey, auditCtx.RequestID)
+	ctx = context.WithValue(ctx, clientIPKey, auditCtx.ClientIP)
+	ctx = context.WithValue(ctx, userAgentKey, auditCtx.UserAgent)
 	return ctx
 }

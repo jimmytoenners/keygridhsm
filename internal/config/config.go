@@ -107,7 +107,7 @@ type RateLimitConfig struct {
 	WindowSize        time.Duration `mapstructure:"window_size"`
 }
 
-// CORSConfig holds CORS configuration
+// CORSConfig holds CORS configuration.
 type CORSConfig struct {
 	Enabled          bool     `mapstructure:"enabled"`
 	AllowedOrigins   []string `mapstructure:"allowed_origins"`
@@ -118,7 +118,7 @@ type CORSConfig struct {
 	MaxAge           int      `mapstructure:"max_age"`
 }
 
-// DevelopmentConfig holds development-specific configuration
+// DevelopmentConfig holds development-specific configuration.
 type DevelopmentConfig struct {
 	Enabled       bool `mapstructure:"enabled"`
 	DebugMode     bool `mapstructure:"debug_mode"`
@@ -126,7 +126,7 @@ type DevelopmentConfig struct {
 	PprofEnabled  bool `mapstructure:"pprof_enabled"`
 }
 
-// DefaultConfig returns a default configuration
+// DefaultConfig returns a default configuration.
 func DefaultConfig() *Config {
 	return &Config{
 		Server: ServerConfig{
@@ -211,7 +211,7 @@ func DefaultConfig() *Config {
 	}
 }
 
-// LoadConfig loads configuration from file and environment variables
+// LoadConfig loads configuration from file and environment variables.
 func LoadConfig(configPath string) (*Config, error) {
 	// Set default configuration
 	config := DefaultConfig()
@@ -259,7 +259,7 @@ func LoadConfig(configPath string) (*Config, error) {
 	return config, nil
 }
 
-// setEnvironmentMappings sets up environment variable mappings for viper
+// setEnvironmentMappings sets up environment variable mappings for viper.
 func setEnvironmentMappings() {
 	// Server configuration
 	// Server configuration environment variables
@@ -297,7 +297,7 @@ func setEnvironmentMappings() {
 	_ = viper.BindEnv("development.mock_providers", "KEYGRID_HSM_DEVELOPMENT_MOCK_PROVIDERS")
 }
 
-// Validate validates the configuration
+// Validate validates the configuration.
 func (c *Config) Validate() error {
 	// Validate server configuration
 	if c.Server.Port <= 0 || c.Server.Port > 65535 {
@@ -390,7 +390,7 @@ func (c *Config) Validate() error {
 	return nil
 }
 
-// GetEnabledProviders returns a list of enabled providers
+// GetEnabledProviders returns a list of enabled providers.
 func (c *Config) GetEnabledProviders() map[string]ProviderConfig {
 	enabled := make(map[string]ProviderConfig)
 	for name, provider := range c.Providers {
@@ -401,17 +401,17 @@ func (c *Config) GetEnabledProviders() map[string]ProviderConfig {
 	return enabled
 }
 
-// IsDevelopmentMode returns true if development mode is enabled
+// IsDevelopmentMode returns true if development mode is enabled.
 func (c *Config) IsDevelopmentMode() bool {
 	return c.Development.Enabled
 }
 
-// IsDebugMode returns true if debug mode is enabled
+// IsDebugMode returns true if debug mode is enabled.
 func (c *Config) IsDebugMode() bool {
 	return c.Development.Enabled && c.Development.DebugMode
 }
 
-// GetLogLevel returns the log level as a string
+// GetLogLevel returns the log level as a string.
 func (c *Config) GetLogLevel() string {
 	if c.IsDebugMode() {
 		return "debug"

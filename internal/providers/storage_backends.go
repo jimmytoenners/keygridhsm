@@ -48,7 +48,7 @@ func NewFilesystemStorage(config map[string]interface{}, logger *logrus.Logger) 
 	}
 
 	// Create base directory if it doesn't exist
-	if err := os.MkdirAll(basePath, 0700); err != nil {
+	if err := os.MkdirAll(basePath, 0o700); err != nil {
 		return nil, fmt.Errorf("failed to create base directory: %w", err)
 	}
 
@@ -66,13 +66,13 @@ func (fs *FilesystemStorage) Store(ctx context.Context, key string, data []byte)
 	dirPath := filepath.Dir(filePath)
 
 	// Create directory if it doesn't exist
-	if err := os.MkdirAll(dirPath, 0700); err != nil {
+	if err := os.MkdirAll(dirPath, 0o700); err != nil {
 		return fmt.Errorf("failed to create directory %s: %w", dirPath, err)
 	}
 
 	// Write file atomically using temporary file
 	tempFile := filePath + ".tmp"
-	if err := os.WriteFile(tempFile, data, 0600); err != nil {
+	if err := os.WriteFile(tempFile, data, 0o600); err != nil {
 		return fmt.Errorf("failed to write temporary file: %w", err)
 	}
 
@@ -173,7 +173,7 @@ func (fs *FilesystemStorage) Exists(ctx context.Context, key string) (bool, erro
 func (fs *FilesystemStorage) Health(ctx context.Context) error {
 	// Check if base directory is writable
 	testFile := filepath.Join(fs.basePath, ".health_check")
-	if err := os.WriteFile(testFile, []byte("test"), 0600); err != nil {
+	if err := os.WriteFile(testFile, []byte("test"), 0o600); err != nil {
 		return fmt.Errorf("filesystem not writable: %w", err)
 	}
 

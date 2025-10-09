@@ -1,3 +1,5 @@
+// Package server provides HTTP API endpoints for the KeyGrid HSM system.
+// It implements REST API endpoints for key management and cryptographic operations.
 package server
 
 import (
@@ -489,7 +491,10 @@ func (s *HTTPServer) writeError(w http.ResponseWriter, statusCode int, message s
 		"timestamp": time.Now().UTC().Format(time.RFC3339),
 	}
 
-	json.NewEncoder(w).Encode(errorResponse)
+	if encodeErr := json.NewEncoder(w).Encode(errorResponse); encodeErr != nil {
+		// If we can't encode the error response, log it
+		s.config.Logger.WithError(encodeErr).Error("Failed to encode error response")
+	}
 }
 
 // responseWriter wraps http.ResponseWriter to capture status code
