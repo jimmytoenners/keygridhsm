@@ -46,6 +46,8 @@ const (
 	ErrCodeKeyGenerationFailed  = "KEY_GENERATION_FAILED"
 	ErrCodeKeyImportFailed      = "KEY_IMPORT_FAILED"
 	ErrCodeKeyDeletionFailed    = "KEY_DELETION_FAILED"
+	ErrCodeKeyActivationFailed  = "KEY_ACTIVATION_FAILED"
+	ErrCodeKeyDeactivationFailed = "KEY_DEACTIVATION_FAILED"
 	ErrCodeKeyInactive          = "KEY_INACTIVE"
 	ErrCodeKeyExpired           = "KEY_EXPIRED"
 	ErrCodeKeyCompromised       = "KEY_COMPROMISED"

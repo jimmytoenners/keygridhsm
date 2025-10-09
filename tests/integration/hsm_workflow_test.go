@@ -2,7 +2,6 @@ package integration
 
 import (
 	"context"
-	"crypto/rand"
 	"fmt"
 	"testing"
 	"time"

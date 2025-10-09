@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/sirupsen/logrus"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
@@ -76,7 +75,7 @@ func (s *E2ETestSuite) TestCompleteKeyLifecycle() {
 	keyHandle, err := s.manager.GenerateKey(ctx, "mock-hsm", config, keySpec, "e2e-test-key")
 	s.Require().NoError(err)
 	s.Assert().NotEmpty(keyHandle.ID)
-	s.Assert().Equal(models.KeyStatusActive, keyHandle.Status)
+	s.Assert().Equal(models.KeyStateActive, keyHandle.State)
 
 	defer func() {
 		// Always try to clean up, ignore errors since key might be deleted in test
@@ -116,7 +115,7 @@ func (s *E2ETestSuite) TestCompleteKeyLifecycle() {
 	sigResponse, err := s.manager.Sign(ctx, "mock-hsm", config, signingRequest)
 	s.Require().NoError(err)
 	s.Assert().NotEmpty(sigResponse.Signature)
-	s.Assert().Equal(keyHandle.ID, sigResponse.KeyHandle)
+	s.Assert().Equal(keyHandle.ID, sigResponse.KeyID)
 
 	// Step 5: Verify the signature
 	valid, err := s.manager.Verify(ctx, "mock-hsm", config, keyHandle.ID, 
@@ -131,7 +130,7 @@ func (s *E2ETestSuite) TestCompleteKeyLifecycle() {
 	// Verify key is deactivated
 	deactivatedKey, err := s.manager.GetKey(ctx, "mock-hsm", config, keyHandle.ID)
 	s.Require().NoError(err)
-	s.Assert().Equal(models.KeyStatusInactive, deactivatedKey.Status)
+	s.Assert().Equal(models.KeyStateInactive, deactivatedKey.State)
 
 	// Deactivated key should not be able to sign
 	_, err = s.manager.Sign(ctx, "mock-hsm", config, signingRequest)
@@ -144,7 +143,7 @@ func (s *E2ETestSuite) TestCompleteKeyLifecycle() {
 	// Verify key is active again
 	reactivatedKey, err := s.manager.GetKey(ctx, "mock-hsm", config, keyHandle.ID)
 	s.Require().NoError(err)
-	s.Assert().Equal(models.KeyStatusActive, reactivatedKey.Status)
+	s.Assert().Equal(models.KeyStateActive, reactivatedKey.State)
 
 	// Should be able to sign again
 	sigResponse2, err := s.manager.Sign(ctx, "mock-hsm", config, signingRequest)
@@ -611,7 +610,7 @@ func (s *E2ETestSuite) TestDataIntegrityAndConsistency() {
 	s.Assert().Equal(keyHandle.KeyType, retrievedKey.KeyType)
 	s.Assert().Equal(keyHandle.KeySize, retrievedKey.KeySize)
 	s.Assert().Equal(keyHandle.Algorithm, retrievedKey.Algorithm)
-	s.Assert().Equal(keyHandle.Status, retrievedKey.Status)
+	s.Assert().Equal(keyHandle.State, retrievedKey.State)
 
 	// Step 5: Test state consistency after operations
 	// Deactivate and check consistency
@@ -620,7 +619,7 @@ func (s *E2ETestSuite) TestDataIntegrityAndConsistency() {
 
 	deactivatedKey, err := s.manager.GetKey(ctx, "mock-hsm", config, keyHandle.ID)
 	s.Require().NoError(err)
-	s.Assert().Equal(models.KeyStatusInactive, deactivatedKey.Status)
+	s.Assert().Equal(models.KeyStateInactive, deactivatedKey.State)
 
 	// Reactivate and check consistency
 	err = s.manager.ActivateKey(ctx, "mock-hsm", config, keyHandle.ID)
@@ -628,7 +627,7 @@ func (s *E2ETestSuite) TestDataIntegrityAndConsistency() {
 
 	reactivatedKey, err := s.manager.GetKey(ctx, "mock-hsm", config, keyHandle.ID)
 	s.Require().NoError(err)
-	s.Assert().Equal(models.KeyStatusActive, reactivatedKey.Status)
+	s.Assert().Equal(models.KeyStateActive, reactivatedKey.State)
 
 	s.T().Log("Data integrity and consistency verified")
 }
@@ -808,7 +807,7 @@ func (s *E2ETestSuite) TestSystemIntegration() {
 	found := false
 	for _, key := range keys {
 		if key.ID == keyHandle.ID {
-			s.Assert().Equal(models.KeyStatusInactive, key.Status)
+			s.Assert().Equal(models.KeyStateInactive, key.State)
 			found = true
 			break
 		}

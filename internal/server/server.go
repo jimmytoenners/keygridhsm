@@ -136,8 +136,8 @@ func (s *HTTPServer) providerHealthHandler(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	ctx := r.Context()
 	// This would need to be implemented in the HSM manager
+	// ctx := r.Context()
 	// healthy, err := s.config.Manager.CheckProviderHealth(ctx, providerName)
 	
 	// Placeholder implementation

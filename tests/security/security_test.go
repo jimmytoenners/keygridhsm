@@ -2,7 +2,6 @@ package security
 
 import (
 	"context"
-	"crypto/rand"
 	"fmt"
 	"strings"
 	"testing"
@@ -360,7 +359,7 @@ func TestKeyLifecycleSecurity(t *testing.T) {
 	require.NotEmpty(t, keyHandle.ID)
 
 	// Test 2: Key should be active by default
-	assert.Equal(t, models.KeyStatusActive, keyHandle.Status, "New key should be active by default")
+	assert.Equal(t, models.KeyStateActive, keyHandle.State, "New key should be active by default")
 
 	// Test 3: Deactivated key should not be usable for signing
 	err = securityManager.DeactivateKey(ctx, "mock-hsm", config, keyHandle.ID)
@@ -378,7 +377,7 @@ func TestKeyLifecycleSecurity(t *testing.T) {
 		}
 	}
 	require.NotNil(t, deactivatedKey)
-	assert.Equal(t, models.KeyStatusInactive, deactivatedKey.Status)
+	assert.Equal(t, models.KeyStateInactive, deactivatedKey.State)
 
 	// Deactivated key should not sign
 	testData := []byte("Test data for deactivated key")

@@ -1,6 +1,7 @@
 package core
 
 import (
+	"context"
 	"fmt"
 	"sync"
 
@@ -130,6 +131,18 @@ func (r *ProviderRegistry) CreateClient(name string, config map[string]interface
 	}
 
 	return provider.CreateClient(config)
+}
+
+// HealthCheck performs a basic health check on a provider
+func (r *ProviderRegistry) HealthCheck(ctx context.Context, name string) (bool, error) {
+	_, err := r.GetProvider(name)
+	if err != nil {
+		return false, err
+	}
+
+	// For now, just check if provider exists and can be retrieved
+	// In a more complete implementation, this could create a temporary client and test it
+	return true, nil
 }
 
 // Default global registry instance
