@@ -460,9 +460,8 @@ func (c *CustomStorageClient) SetKeyExpiration(ctx context.Context, keyHandle st
 
 	var storedKey StoredKeyData
 	if unmarshalErr := json.Unmarshal(data, &storedKey); unmarshalErr != nil {
-		return fmt.Errorf("failed to unmarshal stored key: %w", unmarshalErr)
 		return models.NewHSMErrorWithCause(models.ErrCodeUnknown,
-			"Failed to unmarshal stored key data", err).
+			"Failed to unmarshal stored key data", unmarshalErr).
 			WithProvider(CustomStorageProviderName)
 	}
 
@@ -494,9 +493,8 @@ func (c *CustomStorageClient) GetPublicKey(ctx context.Context, keyHandle string
 
 	var storedKey StoredKeyData
 	if unmarshalErr := json.Unmarshal(data, &storedKey); unmarshalErr != nil {
-		return nil, fmt.Errorf("failed to unmarshal stored key: %w", unmarshalErr)
 		return nil, models.NewHSMErrorWithCause(models.ErrCodeUnknown,
-			"Failed to unmarshal stored key data", err).
+			"Failed to unmarshal stored key data", unmarshalErr).
 			WithProvider(CustomStorageProviderName)
 	}
 
@@ -811,9 +809,8 @@ func (c *CustomStorageClient) updateKeyState(ctx context.Context, keyHandle stri
 
 	var storedKey StoredKeyData
 	if unmarshalErr := json.Unmarshal(data, &storedKey); unmarshalErr != nil {
-		return fmt.Errorf("failed to unmarshal stored key for signing: %w", unmarshalErr)
 		return models.NewHSMErrorWithCause(models.ErrCodeUnknown,
-			"Failed to unmarshal stored key data", err).
+			"Failed to unmarshal stored key data", unmarshalErr).
 			WithProvider(CustomStorageProviderName)
 	}
 
