@@ -670,6 +670,13 @@ func parseAzureConfig(config map[string]interface{}) (*AzureKeyVaultConfig, erro
 func (c *AzureKeyVaultClient) convertKeySpecToAzure(spec models.KeySpec) (azkeys.KeyType, int32, error) {
 	switch spec.KeyType {
 	case models.KeyTypeRSA:
+		// Validate key size to prevent integer overflow and ensure valid RSA key sizes
+		if spec.KeySize < 1024 || spec.KeySize > 4096 {
+			return "", 0, models.NewHSMError(models.ErrCodeInvalidKeySpec,
+				fmt.Sprintf("Invalid RSA key size: %d. Must be between 1024 and 4096 bits", spec.KeySize)).
+				WithProvider(AzureKeyVaultProviderName)
+		}
+		// Safe conversion after validation
 		return azkeys.KeyTypeRSA, int32(spec.KeySize), nil
 	case models.KeyTypeECDSA:
 		switch spec.KeySize {
