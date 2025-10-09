@@ -1,0 +1,340 @@
+name: Code Quality & Linting
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+env:
+  GO_VERSION: '1.23'
+
+jobs:
+  golangci-lint:
+    name: GolangCI-Lint
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: ${{ env.GO_VERSION }}
+
+    - name: Run golangci-lint
+      uses: golangci/golangci-lint-action@v4
+      with:
+        version: latest
+        args: --timeout=5m --verbose
+
+    - name: Upload golangci-lint results
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: golangci-lint-results
+        path: |
+          ./golangci-lint-report.xml
+          ./golangci-lint-report.html
+        if-no-files-found: ignore
+
+  formatting:
+    name: Go Formatting Check
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: ${{ env.GO_VERSION }}
+
+    - name: Check gofmt
+      run: |
+        echo "Checking Go formatting..."
+        unformatted=$(gofmt -l .)
+        if [ -n "$unformatted" ]; then
+          echo "The following files are not properly formatted:"
+          echo "$unformatted"
+          echo "Please run 'gofmt -w .' to fix formatting issues"
+          exit 1
+        else
+          echo "All files are properly formatted"
+        fi
+
+    - name: Check goimports
+      run: |
+        go install golang.org/x/tools/cmd/goimports@latest
+        echo "Checking Go imports..."
+        unformatted=$(goimports -l .)
+        if [ -n "$unformatted" ]; then
+          echo "The following files have import issues:"
+          echo "$unformatted"
+          echo "Please run 'goimports -w .' to fix import issues"
+          exit 1
+        else
+          echo "All imports are properly formatted"
+        fi
+
+  staticcheck:
+    name: StaticCheck Analysis
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: ${{ env.GO_VERSION }}
+
+    - name: Download dependencies
+      run: go mod download
+
+    - name: Install staticcheck
+      run: go install honnef.co/go/tools/cmd/staticcheck@latest
+
+    - name: Run staticcheck
+      run: |
+        echo "Running staticcheck analysis..."
+        staticcheck -f json ./... > staticcheck-results.json || true
+        staticcheck ./... > staticcheck-results.txt || true
+
+    - name: Upload staticcheck results
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: staticcheck-results
+        path: |
+          staticcheck-results.json
+          staticcheck-results.txt
+
+  ineffassign:
+    name: Ineffectual Assignments
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: ${{ env.GO_VERSION }}
+
+    - name: Install ineffassign
+      run: go install github.com/gordonklaus/ineffassign@latest
+
+    - name: Run ineffassign
+      run: |
+        echo "Checking for ineffectual assignments..."
+        ineffassign ./... > ineffassign-results.txt || true
+
+    - name: Upload ineffassign results
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: ineffassign-results
+        path: ineffassign-results.txt
+
+  misspell:
+    name: Spell Check
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install misspell
+      run: |
+        curl -L -o misspell.tar.gz https://github.com/client9/misspell/releases/latest/download/misspell_linux_64bit.tar.gz
+        tar -xzf misspell.tar.gz
+        chmod +x misspell
+        sudo mv misspell /usr/local/bin/
+
+    - name: Run misspell check
+      run: |
+        echo "Checking for common misspellings..."
+        misspell -error . > misspell-results.txt || true
+        
+        # Also check Go files specifically
+        find . -name "*.go" -exec misspell -error {} \; >> misspell-results.txt || true
+
+    - name: Upload misspell results
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: misspell-results
+        path: misspell-results.txt
+
+  cyclomaticity:
+    name: Cyclomatic Complexity
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: ${{ env.GO_VERSION }}
+
+    - name: Install gocyclo
+      run: go install github.com/fzipp/gocyclo/cmd/gocyclo@latest
+
+    - name: Run gocyclo
+      run: |
+        echo "Checking cyclomatic complexity..."
+        gocyclo -over 15 . > gocyclo-results.txt || true
+        echo "Functions with high complexity (>15):" >> gocyclo-results.txt
+        gocyclo -top 20 . >> gocyclo-results.txt || true
+
+    - name: Upload gocyclo results
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: gocyclo-results
+        path: gocyclo-results.txt
+
+  duplication:
+    name: Code Duplication
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: ${{ env.GO_VERSION }}
+
+    - name: Install dupl
+      run: go install github.com/mibk/dupl@latest
+
+    - name: Run dupl
+      run: |
+        echo "Checking for code duplication..."
+        dupl -threshold 100 . > dupl-results.txt || true
+
+    - name: Upload dupl results
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: dupl-results
+        path: dupl-results.txt
+
+  code-quality-report:
+    name: Code Quality Report
+    runs-on: ubuntu-latest
+    needs: [golangci-lint, formatting, staticcheck, ineffassign, misspell, cyclomaticity, duplication]
+    if: always()
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Download all quality artifacts
+      uses: actions/download-artifact@v4
+      with:
+        pattern: "*-results"
+        merge-multiple: true
+
+    - name: Generate Quality Summary
+      run: |
+        echo "# Code Quality Report" > code-quality-summary.md
+        echo "Generated on: $(date)" >> code-quality-summary.md
+        echo "" >> code-quality-summary.md
+        
+        echo "## GolangCI-Lint Results" >> code-quality-summary.md
+        echo "Please check the GolangCI-Lint action output for detailed results." >> code-quality-summary.md
+        echo "" >> code-quality-summary.md
+        
+        echo "## Formatting Check" >> code-quality-summary.md
+        echo "Go formatting and imports check completed successfully." >> code-quality-summary.md
+        echo "" >> code-quality-summary.md
+        
+        echo "## StaticCheck Analysis" >> code-quality-summary.md
+        if [ -f "staticcheck-results.txt" ] && [ -s "staticcheck-results.txt" ]; then
+          echo "StaticCheck found issues:" >> code-quality-summary.md
+          echo '```' >> code-quality-summary.md
+          head -20 staticcheck-results.txt >> code-quality-summary.md
+          echo '```' >> code-quality-summary.md
+        else
+          echo "No StaticCheck issues found." >> code-quality-summary.md
+        fi
+        echo "" >> code-quality-summary.md
+        
+        echo "## Ineffectual Assignments" >> code-quality-summary.md
+        if [ -f "ineffassign-results.txt" ] && [ -s "ineffassign-results.txt" ]; then
+          echo "Found ineffectual assignments:" >> code-quality-summary.md
+          echo '```' >> code-quality-summary.md
+          cat ineffassign-results.txt >> code-quality-summary.md
+          echo '```' >> code-quality-summary.md
+        else
+          echo "No ineffectual assignments found." >> code-quality-summary.md
+        fi
+        echo "" >> code-quality-summary.md
+        
+        echo "## Spell Check" >> code-quality-summary.md
+        if [ -f "misspell-results.txt" ] && [ -s "misspell-results.txt" ]; then
+          echo "Found spelling issues:" >> code-quality-summary.md
+          echo '```' >> code-quality-summary.md
+          cat misspell-results.txt >> code-quality-summary.md
+          echo '```' >> code-quality-summary.md
+        else
+          echo "No spelling issues found." >> code-quality-summary.md
+        fi
+        echo "" >> code-quality-summary.md
+        
+        echo "## Cyclomatic Complexity" >> code-quality-summary.md
+        if [ -f "gocyclo-results.txt" ] && [ -s "gocyclo-results.txt" ]; then
+          echo "Functions with high complexity:" >> code-quality-summary.md
+          echo '```' >> code-quality-summary.md
+          cat gocyclo-results.txt >> code-quality-summary.md
+          echo '```' >> code-quality-summary.md
+        else
+          echo "All functions have acceptable complexity levels." >> code-quality-summary.md
+        fi
+        echo "" >> code-quality-summary.md
+        
+        echo "## Code Duplication" >> code-quality-summary.md
+        if [ -f "dupl-results.txt" ] && [ -s "dupl-results.txt" ]; then
+          echo "Found duplicated code:" >> code-quality-summary.md
+          echo '```' >> code-quality-summary.md
+          head -20 dupl-results.txt >> code-quality-summary.md
+          echo '```' >> code-quality-summary.md
+        else
+          echo "No significant code duplication found." >> code-quality-summary.md
+        fi
+
+    - name: Upload Quality Summary
+      uses: actions/upload-artifact@v4
+      with:
+        name: code-quality-summary
+        path: code-quality-summary.md
+
+    - name: Comment PR with Quality Summary
+      if: github.event_name == 'pull_request'
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const fs = require('fs');
+          const path = './code-quality-summary.md';
+          
+          if (fs.existsSync(path)) {
+            const summary = fs.readFileSync(path, 'utf8');
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: summary
+            });
+          }
