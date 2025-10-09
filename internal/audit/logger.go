@@ -16,39 +16,39 @@ type EventType string
 
 const (
 	// Key lifecycle events
-	EventKeyGenerate EventType = "key_generate"
-	EventKeyImport   EventType = "key_import"
-	EventKeyExport   EventType = "key_export"
-	EventKeyDelete   EventType = "key_delete"
-	EventKeyActivate EventType = "key_activate"
+	EventKeyGenerate   EventType = "key_generate"
+	EventKeyImport     EventType = "key_import"
+	EventKeyExport     EventType = "key_export"
+	EventKeyDelete     EventType = "key_delete"
+	EventKeyActivate   EventType = "key_activate"
 	EventKeyDeactivate EventType = "key_deactivate"
-	EventKeyRotate   EventType = "key_rotate"
-	
+	EventKeyRotate     EventType = "key_rotate"
+
 	// Cryptographic operations
-	EventKeySign     EventType = "key_sign"
-	EventKeyVerify   EventType = "key_verify"
-	EventKeyEncrypt  EventType = "key_encrypt"
-	EventKeyDecrypt  EventType = "key_decrypt"
-	EventKeyWrap     EventType = "key_wrap"
-	EventKeyUnwrap   EventType = "key_unwrap"
-	
+	EventKeySign    EventType = "key_sign"
+	EventKeyVerify  EventType = "key_verify"
+	EventKeyEncrypt EventType = "key_encrypt"
+	EventKeyDecrypt EventType = "key_decrypt"
+	EventKeyWrap    EventType = "key_wrap"
+	EventKeyUnwrap  EventType = "key_unwrap"
+
 	// Authentication and authorization
 	EventAuthLogin    EventType = "auth_login"
 	EventAuthLogout   EventType = "auth_logout"
 	EventAuthFailure  EventType = "auth_failure"
 	EventAuthSuccess  EventType = "auth_success"
 	EventAccessDenied EventType = "access_denied"
-	
+
 	// Administrative actions
 	EventProviderRegister   EventType = "provider_register"
 	EventProviderUnregister EventType = "provider_unregister"
 	EventConfigChange       EventType = "config_change"
 	EventSystemStartup      EventType = "system_startup"
 	EventSystemShutdown     EventType = "system_shutdown"
-	
+
 	// Security events
-	EventSecurityViolation EventType = "security_violation"
-	EventRateLimitExceeded EventType = "rate_limit_exceeded"
+	EventSecurityViolation  EventType = "security_violation"
+	EventRateLimitExceeded  EventType = "rate_limit_exceeded"
 	EventSuspiciousActivity EventType = "suspicious_activity"
 )
 
@@ -59,36 +59,36 @@ type AuditEvent struct {
 	Timestamp time.Time `json:"timestamp"`
 	EventType EventType `json:"event_type"`
 	Severity  string    `json:"severity"`
-	
+
 	// Context information
 	UserID    string `json:"user_id,omitempty"`
 	SessionID string `json:"session_id,omitempty"`
 	RequestID string `json:"request_id,omitempty"`
 	ClientIP  string `json:"client_ip,omitempty"`
 	UserAgent string `json:"user_agent,omitempty"`
-	
+
 	// HSM-specific information
 	Provider  string `json:"provider,omitempty"`
 	KeyID     string `json:"key_id,omitempty"`
 	KeyType   string `json:"key_type,omitempty"`
 	Algorithm string `json:"algorithm,omitempty"`
-	
+
 	// Event details
-	Action     string                 `json:"action"`
-	Resource   string                 `json:"resource,omitempty"`
-	Result     string                 `json:"result"`
-	Message    string                 `json:"message"`
-	Error      string                 `json:"error,omitempty"`
-	Details    map[string]interface{} `json:"details,omitempty"`
-	
+	Action   string                 `json:"action"`
+	Resource string                 `json:"resource,omitempty"`
+	Result   string                 `json:"result"`
+	Message  string                 `json:"message"`
+	Error    string                 `json:"error,omitempty"`
+	Details  map[string]interface{} `json:"details,omitempty"`
+
 	// Compliance fields
 	DataClassification string `json:"data_classification,omitempty"`
 	RetentionPeriod    string `json:"retention_period,omitempty"`
-	
+
 	// Performance metrics
-	Duration      *time.Duration `json:"duration,omitempty"`
-	ResponseSize  *int64         `json:"response_size,omitempty"`
-	RequestSize   *int64         `json:"request_size,omitempty"`
+	Duration     *time.Duration `json:"duration,omitempty"`
+	ResponseSize *int64         `json:"response_size,omitempty"`
+	RequestSize  *int64         `json:"request_size,omitempty"`
 }
 
 // AuditLogger interface for audit logging implementations
@@ -109,15 +109,15 @@ func NewFileAuditLogger(filename string) (*FileAuditLogger, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to open audit log file: %w", err)
 	}
-	
+
 	logger := logrus.New()
 	logger.SetOutput(file)
 	logger.SetFormatter(&logrus.JSONFormatter{
-		TimestampFormat: time.RFC3339Nano,
+		TimestampFormat:   time.RFC3339Nano,
 		DisableHTMLEscape: true,
 	})
 	logger.SetLevel(logrus.InfoLevel)
-	
+
 	return &FileAuditLogger{
 		file:   file,
 		logger: logger,
@@ -145,11 +145,11 @@ func (f *FileAuditLogger) LogEvent(ctx context.Context, event *AuditEvent) error
 		"audit_error":      event.Error,
 		"audit_details":    event.Details,
 	})
-	
+
 	if event.Duration != nil {
 		entry = entry.WithField("audit_duration_ms", event.Duration.Milliseconds())
 	}
-	
+
 	entry.Info(event.Message)
 	return nil
 }
@@ -169,11 +169,11 @@ func NewStdoutAuditLogger() *StdoutAuditLogger {
 	logger := logrus.New()
 	logger.SetOutput(os.Stdout)
 	logger.SetFormatter(&logrus.JSONFormatter{
-		TimestampFormat: time.RFC3339Nano,
+		TimestampFormat:   time.RFC3339Nano,
 		DisableHTMLEscape: true,
 	})
 	logger.SetLevel(logrus.InfoLevel)
-	
+
 	return &StdoutAuditLogger{
 		logger: logger,
 	}
@@ -186,7 +186,7 @@ func (s *StdoutAuditLogger) LogEvent(ctx context.Context, event *AuditEvent) err
 	if err != nil {
 		return fmt.Errorf("failed to marshal audit event: %w", err)
 	}
-	
+
 	s.logger.WithField("audit", string(jsonData)).Info("Audit Event")
 	return nil
 }
@@ -249,26 +249,26 @@ func (a *AuditManager) LogKeyOperation(ctx context.Context, eventType EventType,
 	if !a.enabled {
 		return nil
 	}
-	
+
 	event := &AuditEvent{
-		EventID:   generateEventID(),
-		Timestamp: time.Now().UTC(),
-		EventType: eventType,
-		Severity:  "INFO",
-		Provider:  provider,
-		KeyID:     keyID,
-		KeyType:   keyType,
-		Algorithm: algorithm,
-		Action:    action,
-		Resource:  fmt.Sprintf("key:%s", keyID),
-		Result:    result,
-		Message:   message,
-		Details:   details,
-		Duration:  duration,
+		EventID:            generateEventID(),
+		Timestamp:          time.Now().UTC(),
+		EventType:          eventType,
+		Severity:           "INFO",
+		Provider:           provider,
+		KeyID:              keyID,
+		KeyType:            keyType,
+		Algorithm:          algorithm,
+		Action:             action,
+		Resource:           fmt.Sprintf("key:%s", keyID),
+		Result:             result,
+		Message:            message,
+		Details:            details,
+		Duration:           duration,
 		DataClassification: "SENSITIVE",
 		RetentionPeriod:    "7_YEARS", // Typical compliance requirement
 	}
-	
+
 	// Extract context information if available
 	if userID := ctx.Value("user_id"); userID != nil {
 		event.UserID = fmt.Sprintf("%v", userID)
@@ -282,7 +282,7 @@ func (a *AuditManager) LogKeyOperation(ctx context.Context, eventType EventType,
 	if clientIP := ctx.Value("client_ip"); clientIP != nil {
 		event.ClientIP = fmt.Sprintf("%v", clientIP)
 	}
-	
+
 	return a.logger.LogEvent(ctx, event)
 }
 
@@ -291,34 +291,34 @@ func (a *AuditManager) LogAuthenticationEvent(ctx context.Context, eventType Eve
 	if !a.enabled {
 		return nil
 	}
-	
+
 	severity := "INFO"
 	if result == "failure" || result == "denied" {
 		severity = "WARNING"
 	}
-	
+
 	event := &AuditEvent{
-		EventID:   generateEventID(),
-		Timestamp: time.Now().UTC(),
-		EventType: eventType,
-		Severity:  severity,
-		UserID:    userID,
-		ClientIP:  clientIP,
-		Action:    string(eventType),
-		Result:    result,
-		Message:   message,
-		Details:   details,
+		EventID:            generateEventID(),
+		Timestamp:          time.Now().UTC(),
+		EventType:          eventType,
+		Severity:           severity,
+		UserID:             userID,
+		ClientIP:           clientIP,
+		Action:             string(eventType),
+		Result:             result,
+		Message:            message,
+		Details:            details,
 		DataClassification: "CONFIDENTIAL",
 		RetentionPeriod:    "3_YEARS",
 	}
-	
+
 	if method != "" {
 		if event.Details == nil {
 			event.Details = make(map[string]interface{})
 		}
 		event.Details["auth_method"] = method
 	}
-	
+
 	return a.logger.LogEvent(ctx, event)
 }
 
@@ -327,21 +327,21 @@ func (a *AuditManager) LogSecurityEvent(ctx context.Context, eventType EventType
 	if !a.enabled {
 		return nil
 	}
-	
+
 	event := &AuditEvent{
-		EventID:   generateEventID(),
-		Timestamp: time.Now().UTC(),
-		EventType: eventType,
-		Severity:  severity,
-		Action:    action,
-		Resource:  resource,
-		Result:    "detected",
-		Message:   message,
-		Details:   details,
+		EventID:            generateEventID(),
+		Timestamp:          time.Now().UTC(),
+		EventType:          eventType,
+		Severity:           severity,
+		Action:             action,
+		Resource:           resource,
+		Result:             "detected",
+		Message:            message,
+		Details:            details,
 		DataClassification: "RESTRICTED",
 		RetentionPeriod:    "10_YEARS",
 	}
-	
+
 	// Extract context information if available
 	if userID := ctx.Value("user_id"); userID != nil {
 		event.UserID = fmt.Sprintf("%v", userID)
@@ -349,7 +349,7 @@ func (a *AuditManager) LogSecurityEvent(ctx context.Context, eventType EventType
 	if clientIP := ctx.Value("client_ip"); clientIP != nil {
 		event.ClientIP = fmt.Sprintf("%v", clientIP)
 	}
-	
+
 	return a.logger.LogEvent(ctx, event)
 }
 
@@ -358,20 +358,20 @@ func (a *AuditManager) LogSystemEvent(ctx context.Context, eventType EventType, 
 	if !a.enabled {
 		return nil
 	}
-	
+
 	event := &AuditEvent{
-		EventID:   generateEventID(),
-		Timestamp: time.Now().UTC(),
-		EventType: eventType,
-		Severity:  "INFO",
-		Action:    action,
-		Result:    "completed",
-		Message:   message,
-		Details:   details,
+		EventID:            generateEventID(),
+		Timestamp:          time.Now().UTC(),
+		EventType:          eventType,
+		Severity:           "INFO",
+		Action:             action,
+		Result:             "completed",
+		Message:            message,
+		Details:            details,
 		DataClassification: "INTERNAL",
 		RetentionPeriod:    "1_YEAR",
 	}
-	
+
 	return a.logger.LogEvent(ctx, event)
 }
 

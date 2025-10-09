@@ -8,10 +8,10 @@ import (
 type Collector interface {
 	// RecordOperation records an HSM operation with its outcome
 	RecordOperation(operation, provider string, duration time.Duration, success bool, err error)
-	
+
 	// RecordHealthCheck records a health check result
 	RecordHealthCheck(provider string, healthy bool, duration time.Duration)
-	
+
 	// Close closes the metrics collector
 	Close() error
 }

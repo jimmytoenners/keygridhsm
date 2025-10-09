@@ -50,15 +50,15 @@ func TestKeyIsolation(t *testing.T) {
 	tenant1Config := map[string]interface{}{
 		"persistent_storage": false,
 		"simulate_errors":    false,
-		"max_keys":          1000,
-		"key_prefix":        "tenant1",
+		"max_keys":           1000,
+		"key_prefix":         "tenant1",
 	}
 
 	tenant2Config := map[string]interface{}{
 		"persistent_storage": false,
 		"simulate_errors":    false,
-		"max_keys":          1000,
-		"key_prefix":        "tenant2",
+		"max_keys":           1000,
+		"key_prefix":         "tenant2",
 	}
 
 	keySpec := models.KeySpec{
@@ -71,14 +71,14 @@ func TestKeyIsolation(t *testing.T) {
 	// Generate keys for tenant 1
 	tenant1Key1, err := securityManager.GenerateKey(ctx, "mock-hsm", tenant1Config, keySpec, "isolated-key-1")
 	require.NoError(t, err)
-	
+
 	tenant1Key2, err := securityManager.GenerateKey(ctx, "mock-hsm", tenant1Config, keySpec, "isolated-key-2")
 	require.NoError(t, err)
 
 	// Generate keys for tenant 2
 	tenant2Key1, err := securityManager.GenerateKey(ctx, "mock-hsm", tenant2Config, keySpec, "isolated-key-1")
 	require.NoError(t, err)
-	
+
 	tenant2Key2, err := securityManager.GenerateKey(ctx, "mock-hsm", tenant2Config, keySpec, "isolated-key-2")
 	require.NoError(t, err)
 
@@ -122,7 +122,7 @@ func TestKeyIsolation(t *testing.T) {
 	_, err = securityManager.Sign(ctx, "mock-hsm", tenant1Config, signingRequest)
 	// The error behavior depends on implementation - could be key not found or access denied
 	// The important thing is that one tenant can't arbitrarily access another's keys
-	
+
 	t.Logf("Cross-tenant access attempt result: %v", err)
 }
 
@@ -134,8 +134,8 @@ func TestInputValidation(t *testing.T) {
 	config := map[string]interface{}{
 		"persistent_storage": false,
 		"simulate_errors":    false,
-		"max_keys":          1000,
-		"key_prefix":        "validation-test",
+		"max_keys":           1000,
+		"key_prefix":         "validation-test",
 	}
 
 	testCases := []struct {
@@ -237,10 +237,10 @@ func TestInputValidation(t *testing.T) {
 				if err == nil {
 					assert.NotNil(t, keyHandle, "Should return valid key handle")
 					createdKeys = append(createdKeys, keyHandle.ID)
-					
+
 					// For sanitization tests, verify the key name was cleaned
 					if strings.Contains(tc.keyName, "/") || strings.Contains(tc.keyName, "'") {
-						t.Logf("Potentially malicious input '%s' was handled, key created with ID: %s", 
+						t.Logf("Potentially malicious input '%s' was handled, key created with ID: %s",
 							tc.keyName, keyHandle.ID)
 					}
 				}
@@ -257,8 +257,8 @@ func TestSignatureValidation(t *testing.T) {
 	config := map[string]interface{}{
 		"persistent_storage": false,
 		"simulate_errors":    false,
-		"max_keys":          1000,
-		"key_prefix":        "sig-validation",
+		"max_keys":           1000,
+		"key_prefix":         "sig-validation",
 	}
 
 	keySpec := models.KeySpec{
@@ -291,13 +291,13 @@ func TestSignatureValidation(t *testing.T) {
 	require.NotEmpty(t, sigResponse.Signature)
 
 	// Test 1: Valid signature should verify successfully
-	valid, err := securityManager.Verify(ctx, "mock-hsm", config, keyHandle.ID, 
+	valid, err := securityManager.Verify(ctx, "mock-hsm", config, keyHandle.ID,
 		originalData, sigResponse.Signature, "RSA-PSS")
 	require.NoError(t, err)
 	assert.True(t, valid, "Valid signature should verify successfully")
 
 	// Test 2: Tampered data should fail verification
-	valid, err = securityManager.Verify(ctx, "mock-hsm", config, keyHandle.ID, 
+	valid, err = securityManager.Verify(ctx, "mock-hsm", config, keyHandle.ID,
 		tamperedData, sigResponse.Signature, "RSA-PSS")
 	require.NoError(t, err)
 	assert.False(t, valid, "Signature of tampered data should fail verification")
@@ -307,13 +307,13 @@ func TestSignatureValidation(t *testing.T) {
 	copy(corruptedSignature, sigResponse.Signature)
 	corruptedSignature[0] ^= 0xFF // Flip bits in first byte
 
-	valid, err = securityManager.Verify(ctx, "mock-hsm", config, keyHandle.ID, 
+	valid, err = securityManager.Verify(ctx, "mock-hsm", config, keyHandle.ID,
 		originalData, corruptedSignature, "RSA-PSS")
 	require.NoError(t, err)
 	assert.False(t, valid, "Corrupted signature should fail verification")
 
 	// Test 4: Empty signature should fail
-	valid, err = securityManager.Verify(ctx, "mock-hsm", config, keyHandle.ID, 
+	valid, err = securityManager.Verify(ctx, "mock-hsm", config, keyHandle.ID,
 		originalData, []byte{}, "RSA-PSS")
 	if err == nil {
 		assert.False(t, valid, "Empty signature should fail verification")
@@ -323,9 +323,9 @@ func TestSignatureValidation(t *testing.T) {
 
 	// Test 5: Wrong algorithm should fail or error
 	if len(sigResponse.Signature) > 0 {
-		valid, err = securityManager.Verify(ctx, "mock-hsm", config, keyHandle.ID, 
+		valid, err = securityManager.Verify(ctx, "mock-hsm", config, keyHandle.ID,
 			originalData, sigResponse.Signature, "ECDSA") // Wrong algorithm
-		
+
 		if err != nil {
 			t.Logf("Wrong algorithm correctly caused error: %v", err)
 		} else {
@@ -342,8 +342,8 @@ func TestKeyLifecycleSecurity(t *testing.T) {
 	config := map[string]interface{}{
 		"persistent_storage": false,
 		"simulate_errors":    false,
-		"max_keys":          1000,
-		"key_prefix":        "lifecycle-security",
+		"max_keys":           1000,
+		"key_prefix":         "lifecycle-security",
 	}
 
 	keySpec := models.KeySpec{
@@ -423,8 +423,8 @@ func TestTimingAttackResistance(t *testing.T) {
 	config := map[string]interface{}{
 		"persistent_storage": false,
 		"simulate_errors":    false,
-		"max_keys":          1000,
-		"key_prefix":        "timing-attack",
+		"max_keys":           1000,
+		"key_prefix":         "timing-attack",
 	}
 
 	keySpec := models.KeySpec{
@@ -443,7 +443,7 @@ func TestTimingAttackResistance(t *testing.T) {
 	}()
 
 	testData := []byte("Timing attack test data")
-	
+
 	// Generate valid signature
 	signingRequest := models.SigningRequest{
 		KeyHandle: keyHandle.ID,
@@ -462,10 +462,10 @@ func TestTimingAttackResistance(t *testing.T) {
 	// Measure valid signature verification times
 	for i := 0; i < numSamples; i++ {
 		start := time.Now()
-		valid, err := securityManager.Verify(ctx, "mock-hsm", config, keyHandle.ID, 
+		valid, err := securityManager.Verify(ctx, "mock-hsm", config, keyHandle.ID,
 			testData, sigResponse.Signature, "RSA-PSS")
 		validTimes[i] = time.Since(start)
-		
+
 		require.NoError(t, err)
 		require.True(t, valid)
 	}
@@ -478,10 +478,10 @@ func TestTimingAttackResistance(t *testing.T) {
 	// Measure invalid signature verification times
 	for i := 0; i < numSamples; i++ {
 		start := time.Now()
-		valid, err := securityManager.Verify(ctx, "mock-hsm", config, keyHandle.ID, 
+		valid, err := securityManager.Verify(ctx, "mock-hsm", config, keyHandle.ID,
 			testData, invalidSignature, "RSA-PSS")
 		invalidTimes[i] = time.Since(start)
-		
+
 		require.NoError(t, err)
 		require.False(t, valid)
 	}
@@ -518,8 +518,8 @@ func TestRandomnessQuality(t *testing.T) {
 	config := map[string]interface{}{
 		"persistent_storage": false,
 		"simulate_errors":    false,
-		"max_keys":          1000,
-		"key_prefix":        "randomness-test",
+		"max_keys":           1000,
+		"key_prefix":         "randomness-test",
 	}
 
 	keySpec := models.KeySpec{
@@ -557,7 +557,7 @@ func TestRandomnessQuality(t *testing.T) {
 	if len(keyHandles) > 0 {
 		keyHandle := keyHandles[0]
 		testData := []byte("Randomness test data for signatures")
-		
+
 		signingRequest := models.SigningRequest{
 			KeyHandle: keyHandle.ID,
 			Data:      testData,
@@ -572,7 +572,7 @@ func TestRandomnessQuality(t *testing.T) {
 			require.NoError(t, err)
 
 			sigHex := fmt.Sprintf("%x", sigResponse.Signature)
-			
+
 			// For PSS, signatures of the same data should be different due to salt
 			if !signatures[sigHex] {
 				signatures[sigHex] = true
@@ -594,8 +594,8 @@ func TestSecureKeyDeletion(t *testing.T) {
 	config := map[string]interface{}{
 		"persistent_storage": false,
 		"simulate_errors":    false,
-		"max_keys":          1000,
-		"key_prefix":        "secure-deletion",
+		"max_keys":           1000,
+		"key_prefix":         "secure-deletion",
 	}
 
 	keySpec := models.KeySpec{
@@ -622,7 +622,7 @@ func TestSecureKeyDeletion(t *testing.T) {
 	require.NotEmpty(t, sigResponse.Signature)
 
 	// Verify signature works
-	valid, err := securityManager.Verify(ctx, "mock-hsm", config, keyHandle.ID, 
+	valid, err := securityManager.Verify(ctx, "mock-hsm", config, keyHandle.ID,
 		testData, sigResponse.Signature, "RSA-PSS")
 	require.NoError(t, err)
 	require.True(t, valid)
@@ -635,7 +635,7 @@ func TestSecureKeyDeletion(t *testing.T) {
 	// 1. Should not appear in key listing
 	keys, err := securityManager.ListKeys(ctx, "mock-hsm", config)
 	require.NoError(t, err)
-	
+
 	for _, key := range keys {
 		assert.NotEqual(t, keyHandle.ID, key.ID, "Deleted key should not appear in listings")
 	}
@@ -645,7 +645,7 @@ func TestSecureKeyDeletion(t *testing.T) {
 	assert.Error(t, err, "Deleted key should not be usable for signing")
 
 	// 3. Should not be usable for verification (using the old signature)
-	_, err = securityManager.Verify(ctx, "mock-hsm", config, keyHandle.ID, 
+	_, err = securityManager.Verify(ctx, "mock-hsm", config, keyHandle.ID,
 		testData, sigResponse.Signature, "RSA-PSS")
 	assert.Error(t, err, "Deleted key should not be usable for verification")
 
@@ -662,8 +662,8 @@ func TestProviderSecurityIsolation(t *testing.T) {
 	mockConfig := map[string]interface{}{
 		"persistent_storage": false,
 		"simulate_errors":    false,
-		"max_keys":          1000,
-		"key_prefix":        "mock-isolation",
+		"max_keys":           1000,
+		"key_prefix":         "mock-isolation",
 	}
 
 	customConfig := map[string]interface{}{
@@ -705,7 +705,7 @@ func TestProviderSecurityIsolation(t *testing.T) {
 	}
 
 	for _, key := range customKeys {
-		assert.False(t, mockKeyIDs[key.ID], 
+		assert.False(t, mockKeyIDs[key.ID],
 			"Custom storage provider should not see mock HSM keys")
 	}
 
@@ -738,8 +738,8 @@ func TestCryptographicStrength(t *testing.T) {
 	config := map[string]interface{}{
 		"persistent_storage": false,
 		"simulate_errors":    false,
-		"max_keys":          1000,
-		"key_prefix":        "crypto-strength",
+		"max_keys":           1000,
+		"key_prefix":         "crypto-strength",
 	}
 
 	testCases := []struct {
@@ -776,7 +776,7 @@ func TestCryptographicStrength(t *testing.T) {
 				Usage:     []models.KeyUsage{models.KeyUsageSign, models.KeyUsageVerify},
 			}
 
-			keyHandle, err := securityManager.GenerateKey(ctx, "mock-hsm", config, keySpec, 
+			keyHandle, err := securityManager.GenerateKey(ctx, "mock-hsm", config, keySpec,
 				fmt.Sprintf("strength-test-%s", tc.name))
 			require.NoError(t, err)
 			createdKeys = append(createdKeys, keyHandle)
@@ -784,7 +784,7 @@ func TestCryptographicStrength(t *testing.T) {
 			// Verify key properties
 			assert.Equal(t, tc.keyType, keyHandle.KeyType)
 			assert.Equal(t, tc.keySize, keyHandle.KeySize)
-			assert.GreaterOrEqual(t, keyHandle.KeySize, tc.minSize, 
+			assert.GreaterOrEqual(t, keyHandle.KeySize, tc.minSize,
 				"Key size should meet minimum security requirements")
 
 			// Test signing and verification
@@ -800,12 +800,12 @@ func TestCryptographicStrength(t *testing.T) {
 			require.NotEmpty(t, sigResponse.Signature)
 
 			// Verify signature
-			valid, err := securityManager.Verify(ctx, "mock-hsm", config, keyHandle.ID, 
+			valid, err := securityManager.Verify(ctx, "mock-hsm", config, keyHandle.ID,
 				testData, sigResponse.Signature, tc.algorithm)
 			require.NoError(t, err)
 			require.True(t, valid)
 
-			t.Logf("Successfully tested %s key with %d-bit strength", 
+			t.Logf("Successfully tested %s key with %d-bit strength",
 				tc.keyType, tc.keySize)
 		})
 	}
@@ -819,8 +819,8 @@ func TestConcurrentSecurityOperations(t *testing.T) {
 	config := map[string]interface{}{
 		"persistent_storage": false,
 		"simulate_errors":    false,
-		"max_keys":          1000,
-		"key_prefix":        "concurrent-security",
+		"max_keys":           1000,
+		"key_prefix":         "concurrent-security",
 	}
 
 	keySpec := models.KeySpec{
@@ -860,7 +860,7 @@ func TestConcurrentSecurityOperations(t *testing.T) {
 			}
 
 			// Verify
-			valid, err := securityManager.Verify(ctx, "mock-hsm", config, sharedKey.ID, 
+			valid, err := securityManager.Verify(ctx, "mock-hsm", config, sharedKey.ID,
 				testData, sigResponse.Signature, "RSA-PSS")
 			if err != nil {
 				errors <- err

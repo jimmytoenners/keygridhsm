@@ -18,8 +18,8 @@ import (
 // E2ETestSuite contains end-to-end tests for the complete HSM system
 type E2ETestSuite struct {
 	suite.Suite
-	registry    *core.ProviderRegistry
-	manager     *core.HSMManager
+	registry *core.ProviderRegistry
+	manager  *core.HSMManager
 }
 
 // SetupSuite initializes the test environment
@@ -54,13 +54,13 @@ func (s *E2ETestSuite) TearDownSuite() {
 // TestCompleteKeyLifecycle tests the complete key lifecycle from creation to deletion
 func (s *E2ETestSuite) TestCompleteKeyLifecycle() {
 	ctx := context.Background()
-	
+
 	// Test configuration
 	config := map[string]interface{}{
 		"persistent_storage": false,
 		"simulate_errors":    false,
-		"max_keys":          1000,
-		"key_prefix":        "e2e-lifecycle",
+		"max_keys":           1000,
+		"key_prefix":         "e2e-lifecycle",
 	}
 
 	keySpec := models.KeySpec{
@@ -84,7 +84,7 @@ func (s *E2ETestSuite) TestCompleteKeyLifecycle() {
 	// Step 2: List keys and verify our key is present
 	keys, err := s.manager.ListKeys(ctx, "mock-hsm", config)
 	s.Require().NoError(err)
-	
+
 	found := false
 	for _, key := range keys {
 		if key.ID == keyHandle.ID {
@@ -117,7 +117,7 @@ func (s *E2ETestSuite) TestCompleteKeyLifecycle() {
 	s.Assert().Equal(keyHandle.ID, sigResponse.KeyID)
 
 	// Step 5: Verify the signature
-	valid, err := s.manager.Verify(ctx, "mock-hsm", config, keyHandle.ID, 
+	valid, err := s.manager.Verify(ctx, "mock-hsm", config, keyHandle.ID,
 		testData, sigResponse.Signature, "RSA-PSS")
 	s.Require().NoError(err)
 	s.Assert().True(valid, "Signature should verify successfully")
@@ -178,8 +178,8 @@ func (s *E2ETestSuite) TestMultiProviderWorkflow() {
 		"mock-hsm": {
 			"persistent_storage": false,
 			"simulate_errors":    false,
-			"max_keys":          1000,
-			"key_prefix":        "e2e-multi-mock",
+			"max_keys":           1000,
+			"key_prefix":         "e2e-multi-mock",
 		},
 		"custom-storage": {
 			"storage_type":    "memory",
@@ -210,7 +210,7 @@ func (s *E2ETestSuite) TestMultiProviderWorkflow() {
 		keyName := fmt.Sprintf("multi-provider-key-%s", providerName)
 		keyHandle, err := s.manager.GenerateKey(ctx, providerName, config, keySpec, keyName)
 		s.Require().NoError(err, "Failed to create key in provider %s", providerName)
-		
+
 		createdKeys[providerName] = keyHandle
 		s.T().Logf("Created key %s in provider %s", keyHandle.ID, providerName)
 	}
@@ -246,7 +246,7 @@ func (s *E2ETestSuite) TestMultiProviderWorkflow() {
 
 	for providerName, keyHandle := range createdKeys {
 		config := providers[providerName]
-		
+
 		// Sign with this provider's key
 		signingRequest := models.SigningRequest{
 			KeyHandle: keyHandle.ID,
@@ -284,12 +284,12 @@ func (s *E2ETestSuite) TestMultiProviderWorkflow() {
 // TestMultipleKeyTypes tests workflow with different key types
 func (s *E2ETestSuite) TestMultipleKeyTypes() {
 	ctx := context.Background()
-	
+
 	config := map[string]interface{}{
 		"persistent_storage": false,
 		"simulate_errors":    false,
-		"max_keys":          1000,
-		"key_prefix":        "e2e-key-types",
+		"max_keys":           1000,
+		"key_prefix":         "e2e-key-types",
 	}
 
 	keySpecs := map[string]models.KeySpec{
@@ -327,11 +327,11 @@ func (s *E2ETestSuite) TestMultipleKeyTypes() {
 		keyName := fmt.Sprintf("e2e-key-%s", keyTypeName)
 		keyHandle, err := s.manager.GenerateKey(ctx, "mock-hsm", config, keySpec, keyName)
 		s.Require().NoError(err, "Failed to generate %s key", keyTypeName)
-		
+
 		createdKeys[keyTypeName] = keyHandle
 		s.Assert().Equal(keySpec.KeyType, keyHandle.KeyType)
 		s.Assert().Equal(keySpec.KeySize, keyHandle.KeySize)
-		
+
 		s.T().Logf("Generated %s key: %s", keyTypeName, keyHandle.ID)
 	}
 
@@ -340,7 +340,7 @@ func (s *E2ETestSuite) TestMultipleKeyTypes() {
 
 	for keyTypeName, keyHandle := range createdKeys {
 		keySpec := keySpecs[keyTypeName]
-		
+
 		signingRequest := models.SigningRequest{
 			KeyHandle: keyHandle.ID,
 			Data:      testData,
@@ -392,15 +392,15 @@ func (s *E2ETestSuite) TestErrorConditionsAndRecovery() {
 		"persistent_storage": false,
 		"simulate_errors":    true,
 		"error_rate":         0.3, // 30% error rate
-		"max_keys":          1000,
-		"key_prefix":        "e2e-error-test",
+		"max_keys":           1000,
+		"key_prefix":         "e2e-error-test",
 	}
 
 	normalConfig := map[string]interface{}{
 		"persistent_storage": false,
 		"simulate_errors":    false,
-		"max_keys":          1000,
-		"key_prefix":        "e2e-normal-test",
+		"max_keys":           1000,
+		"key_prefix":         "e2e-normal-test",
 	}
 
 	keySpec := models.KeySpec{
@@ -428,7 +428,7 @@ func (s *E2ETestSuite) TestErrorConditionsAndRecovery() {
 		}
 	}
 
-	s.T().Logf("Error simulation results: %d successes, %d errors out of %d attempts", 
+	s.T().Logf("Error simulation results: %d successes, %d errors out of %d attempts",
 		successCount, errorCount, attempts)
 
 	// Should have some errors due to error simulation
@@ -470,8 +470,8 @@ func (s *E2ETestSuite) TestCapacityLimitsAndCleanup() {
 	limitedConfig := map[string]interface{}{
 		"persistent_storage": false,
 		"simulate_errors":    false,
-		"max_keys":          10, // Very limited capacity
-		"key_prefix":        "e2e-capacity-test",
+		"max_keys":           10, // Very limited capacity
+		"key_prefix":         "e2e-capacity-test",
 	}
 
 	keySpec := models.KeySpec{
@@ -543,8 +543,8 @@ func (s *E2ETestSuite) TestDataIntegrityAndConsistency() {
 	config := map[string]interface{}{
 		"persistent_storage": false,
 		"simulate_errors":    false,
-		"max_keys":          1000,
-		"key_prefix":        "e2e-integrity",
+		"max_keys":           1000,
+		"key_prefix":         "e2e-integrity",
 	}
 
 	keySpec := models.KeySpec{
@@ -659,8 +659,8 @@ func (s *E2ETestSuite) TestSystemScalabilityBasics() {
 	config := map[string]interface{}{
 		"persistent_storage": false,
 		"simulate_errors":    false,
-		"max_keys":          1000,
-		"key_prefix":        "e2e-scalability",
+		"max_keys":           1000,
+		"key_prefix":         "e2e-scalability",
 	}
 
 	keySpec := models.KeySpec{
@@ -746,8 +746,8 @@ func (s *E2ETestSuite) TestSystemIntegration() {
 	config := map[string]interface{}{
 		"persistent_storage": false,
 		"simulate_errors":    false,
-		"max_keys":          1000,
-		"key_prefix":        "e2e-integration",
+		"max_keys":           1000,
+		"key_prefix":         "e2e-integration",
 	}
 
 	keySpec := models.KeySpec{
@@ -778,7 +778,7 @@ func (s *E2ETestSuite) TestSystemIntegration() {
 
 	// Step 4: Test operation chaining
 	testData := []byte("Integration test data")
-	
+
 	// Sign
 	signingRequest := models.SigningRequest{
 		KeyHandle: keyHandle.ID,

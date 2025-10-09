@@ -35,22 +35,22 @@ const (
 type StorageBackend interface {
 	// Store saves data with the given key
 	Store(ctx context.Context, key string, data []byte) error
-	
+
 	// Retrieve gets data for the given key
 	Retrieve(ctx context.Context, key string) ([]byte, error)
-	
+
 	// Delete removes data for the given key
 	Delete(ctx context.Context, key string) error
-	
+
 	// List returns all keys with the given prefix
 	List(ctx context.Context, prefix string) ([]string, error)
-	
+
 	// Exists checks if a key exists
 	Exists(ctx context.Context, key string) (bool, error)
-	
+
 	// Health checks if the storage backend is healthy
 	Health(ctx context.Context) error
-	
+
 	// Close closes the storage backend
 	Close() error
 }
@@ -62,31 +62,31 @@ type CustomStorageProvider struct {
 
 // CustomStorageClient implements the HSMClient interface with custom storage backend
 type CustomStorageClient struct {
-	storage         StorageBackend
-	encryptionKey   []byte
-	logger          *logrus.Logger
-	config          *CustomStorageConfig
+	storage       StorageBackend
+	encryptionKey []byte
+	logger        *logrus.Logger
+	config        *CustomStorageConfig
 }
 
 // CustomStorageConfig holds configuration for custom storage provider
 type CustomStorageConfig struct {
-	StorageType     string                 `json:"storage_type"`     // "filesystem", "database", "s3", etc.
-	StorageConfig   map[string]interface{} `json:"storage_config"`
-	EncryptionKey   string                 `json:"encryption_key"`
-	KeyPrefix       string                 `json:"key_prefix"`
-	EncryptAtRest   bool                   `json:"encrypt_at_rest"`
+	StorageType   string                 `json:"storage_type"` // "filesystem", "database", "s3", etc.
+	StorageConfig map[string]interface{} `json:"storage_config"`
+	EncryptionKey string                 `json:"encryption_key"`
+	KeyPrefix     string                 `json:"key_prefix"`
+	EncryptAtRest bool                   `json:"encrypt_at_rest"`
 }
 
 // StoredKeyData represents encrypted key data stored in the backend
 type StoredKeyData struct {
-	Handle        *models.KeyHandle `json:"handle"`
-	EncryptedKey  []byte           `json:"encrypted_key"`
-	PublicKeyPEM  []byte           `json:"public_key_pem"`
-	CreatedAt     time.Time        `json:"created_at"`
-	UpdatedAt     time.Time        `json:"updated_at"`
-	Metadata      map[string]string `json:"metadata"`
-	Salt          []byte           `json:"salt,omitempty"`
-	Nonce         []byte           `json:"nonce,omitempty"`
+	Handle       *models.KeyHandle `json:"handle"`
+	EncryptedKey []byte            `json:"encrypted_key"`
+	PublicKeyPEM []byte            `json:"public_key_pem"`
+	CreatedAt    time.Time         `json:"created_at"`
+	UpdatedAt    time.Time         `json:"updated_at"`
+	Metadata     map[string]string `json:"metadata"`
+	Salt         []byte            `json:"salt,omitempty"`
+	Nonce        []byte            `json:"nonce,omitempty"`
 }
 
 // NewCustomStorageProvider creates a new custom storage provider
@@ -94,7 +94,7 @@ func NewCustomStorageProvider(logger *logrus.Logger) *CustomStorageProvider {
 	if logger == nil {
 		logger = logrus.New()
 	}
-	
+
 	return &CustomStorageProvider{
 		logger: logger,
 	}
@@ -208,21 +208,21 @@ func (p *CustomStorageProvider) createStorageBackend(config *CustomStorageConfig
 // Client interface implementation
 func (c *CustomStorageClient) Health(ctx context.Context) (*models.HealthStatus, error) {
 	start := time.Now()
-	
+
 	err := c.storage.Health(ctx)
 	if err != nil {
 		return &models.HealthStatus{
-			Status:       "unhealthy",
-			Provider:     CustomStorageProviderName,
-			LastCheck:    time.Now(),
-			Error:        err.Error(),
-			ResponseTime: time.Since(start),
-			Details: map[string]string{
-				"storage_type": c.config.StorageType,
-			},
-		}, models.NewHSMErrorWithCause(models.ErrCodeServiceUnavailable,
-			"Custom storage health check failed", err).
-			WithProvider(CustomStorageProviderName)
+				Status:       "unhealthy",
+				Provider:     CustomStorageProviderName,
+				LastCheck:    time.Now(),
+				Error:        err.Error(),
+				ResponseTime: time.Since(start),
+				Details: map[string]string{
+					"storage_type": c.config.StorageType,
+				},
+			}, models.NewHSMErrorWithCause(models.ErrCodeServiceUnavailable,
+				"Custom storage health check failed", err).
+				WithProvider(CustomStorageProviderName)
 	}
 
 	return &models.HealthStatus{
@@ -239,11 +239,11 @@ func (c *CustomStorageClient) Health(ctx context.Context) (*models.HealthStatus,
 
 func (c *CustomStorageClient) GetProviderInfo(ctx context.Context) (map[string]interface{}, error) {
 	return map[string]interface{}{
-		"provider":       CustomStorageProviderName,
-		"version":        CustomStorageProviderVersion,
-		"storage_type":   c.config.StorageType,
+		"provider":        CustomStorageProviderName,
+		"version":         CustomStorageProviderVersion,
+		"storage_type":    c.config.StorageType,
 		"encrypt_at_rest": c.config.EncryptAtRest,
-		"custom_storage": true,
+		"custom_storage":  true,
 	}, nil
 }
 
@@ -373,7 +373,7 @@ func (c *CustomStorageClient) ImportKey(ctx context.Context, keyData []byte, spe
 
 func (c *CustomStorageClient) GetKey(ctx context.Context, keyHandle string) (*models.KeyHandle, error) {
 	keyPath := c.getKeyPath(keyHandle)
-	
+
 	data, err := c.storage.Retrieve(ctx, keyPath)
 	if err != nil {
 		return nil, models.NewHSMErrorWithCause(models.ErrCodeKeyNotFound,
@@ -393,7 +393,7 @@ func (c *CustomStorageClient) GetKey(ctx context.Context, keyHandle string) (*mo
 
 func (c *CustomStorageClient) ListKeys(ctx context.Context) ([]*models.KeyHandle, error) {
 	prefix := c.getKeyPrefix()
-	
+
 	keyPaths, err := c.storage.List(ctx, prefix)
 	if err != nil {
 		return nil, models.NewHSMErrorWithCause(models.ErrCodeUnknown,
@@ -429,7 +429,7 @@ func (c *CustomStorageClient) ListKeys(ctx context.Context) ([]*models.KeyHandle
 
 func (c *CustomStorageClient) DeleteKey(ctx context.Context, keyHandle string) error {
 	keyPath := c.getKeyPath(keyHandle)
-	
+
 	err := c.storage.Delete(ctx, keyPath)
 	if err != nil {
 		return models.NewHSMErrorWithCause(models.ErrCodeKeyDeletionFailed,
@@ -450,7 +450,7 @@ func (c *CustomStorageClient) DeactivateKey(ctx context.Context, keyHandle strin
 
 func (c *CustomStorageClient) SetKeyExpiration(ctx context.Context, keyHandle string, expiration time.Time) error {
 	keyPath := c.getKeyPath(keyHandle)
-	
+
 	data, err := c.storage.Retrieve(ctx, keyPath)
 	if err != nil {
 		return models.NewHSMErrorWithCause(models.ErrCodeKeyNotFound,
@@ -483,7 +483,7 @@ func (c *CustomStorageClient) SetKeyExpiration(ctx context.Context, keyHandle st
 
 func (c *CustomStorageClient) GetPublicKey(ctx context.Context, keyHandle string) (crypto.PublicKey, error) {
 	keyPath := c.getKeyPath(keyHandle)
-	
+
 	data, err := c.storage.Retrieve(ctx, keyPath)
 	if err != nil {
 		return nil, models.NewHSMErrorWithCause(models.ErrCodeKeyNotFound,
@@ -634,29 +634,29 @@ func (c *CustomStorageClient) Close() error {
 // Helper functions
 func parseCustomStorageConfig(config map[string]interface{}) (*CustomStorageConfig, error) {
 	customConfig := &CustomStorageConfig{}
-	
+
 	if storageType, ok := config["storage_type"].(string); ok {
 		customConfig.StorageType = storageType
 	}
-	
+
 	if storageConfig, ok := config["storage_config"].(map[string]interface{}); ok {
 		customConfig.StorageConfig = storageConfig
 	}
-	
+
 	if encryptionKey, ok := config["encryption_key"].(string); ok {
 		customConfig.EncryptionKey = encryptionKey
 	}
-	
+
 	if keyPrefix, ok := config["key_prefix"].(string); ok {
 		customConfig.KeyPrefix = keyPrefix
 	} else {
 		customConfig.KeyPrefix = "keygrid-hsm"
 	}
-	
+
 	if encryptAtRest, ok := config["encrypt_at_rest"].(bool); ok {
 		customConfig.EncryptAtRest = encryptAtRest
 	}
-	
+
 	return customConfig, nil
 }
 
@@ -668,7 +668,7 @@ func (c *CustomStorageClient) generateKeyPair(spec models.KeySpec) (crypto.Priva
 			return nil, nil, err
 		}
 		return privateKey, &privateKey.PublicKey, nil
-		
+
 	case models.KeyTypeECDSA:
 		var curve elliptic.Curve
 		switch spec.KeySize {
@@ -681,20 +681,20 @@ func (c *CustomStorageClient) generateKeyPair(spec models.KeySpec) (crypto.Priva
 		default:
 			return nil, nil, fmt.Errorf("unsupported ECDSA key size: %d", spec.KeySize)
 		}
-		
+
 		privateKey, err := ecdsa.GenerateKey(curve, rand.Reader)
 		if err != nil {
 			return nil, nil, err
 		}
 		return privateKey, &privateKey.PublicKey, nil
-		
+
 	case models.KeyTypeEd25519:
 		publicKey, privateKey, err := ed25519.GenerateKey(rand.Reader)
 		if err != nil {
 			return nil, nil, err
 		}
 		return privateKey, publicKey, nil
-		
+
 	default:
 		return nil, nil, fmt.Errorf("unsupported key type: %s", spec.KeyType)
 	}
@@ -718,12 +718,12 @@ func (c *CustomStorageClient) serializePublicKey(publicKey crypto.PublicKey) ([]
 	if err != nil {
 		return nil, err
 	}
-	
+
 	publicKeyPEM := pem.EncodeToMemory(&pem.Block{
 		Type:  "PUBLIC KEY",
 		Bytes: publicKeyDER,
 	})
-	
+
 	return publicKeyPEM, nil
 }
 
@@ -733,25 +733,25 @@ func (c *CustomStorageClient) parsePrivateKey(keyData []byte) (crypto.PrivateKey
 	if block != nil {
 		keyData = block.Bytes
 	}
-	
+
 	// Try different key formats
 	if key, err := x509.ParsePKCS1PrivateKey(keyData); err == nil {
 		return key, nil
 	}
-	
+
 	if key, err := x509.ParsePKCS8PrivateKey(keyData); err == nil {
 		return key, nil
 	}
-	
+
 	if key, err := x509.ParseECPrivateKey(keyData); err == nil {
 		return key, nil
 	}
-	
+
 	// Try Ed25519
 	if len(keyData) == ed25519.PrivateKeySize {
 		return ed25519.PrivateKey(keyData), nil
 	}
-	
+
 	return nil, fmt.Errorf("unsupported private key format")
 }
 
@@ -772,7 +772,7 @@ func (c *CustomStorageClient) storeKey(ctx context.Context, handle *models.KeyHa
 	// Encrypt private key if required
 	encryptedKey := privateKeyBytes
 	var salt, nonce []byte
-	
+
 	if c.config.EncryptAtRest && len(c.encryptionKey) > 0 {
 		var err error
 		encryptedKey, salt, nonce, err = c.encryptData(privateKeyBytes)
@@ -780,7 +780,7 @@ func (c *CustomStorageClient) storeKey(ctx context.Context, handle *models.KeyHa
 			return fmt.Errorf("failed to encrypt private key: %w", err)
 		}
 	}
-	
+
 	storedKey := StoredKeyData{
 		Handle:       handle,
 		EncryptedKey: encryptedKey,
@@ -791,19 +791,19 @@ func (c *CustomStorageClient) storeKey(ctx context.Context, handle *models.KeyHa
 		Salt:         salt,
 		Nonce:        nonce,
 	}
-	
+
 	data, err := json.Marshal(storedKey)
 	if err != nil {
 		return fmt.Errorf("failed to marshal key data: %w", err)
 	}
-	
+
 	keyPath := c.getKeyPath(handle.ID)
 	return c.storage.Store(ctx, keyPath, data)
 }
 
 func (c *CustomStorageClient) getPrivateKey(ctx context.Context, keyHandle string) (crypto.PrivateKey, error) {
 	keyPath := c.getKeyPath(keyHandle)
-	
+
 	data, err := c.storage.Retrieve(ctx, keyPath)
 	if err != nil {
 		return nil, models.NewHSMErrorWithCause(models.ErrCodeKeyNotFound,
@@ -817,7 +817,7 @@ func (c *CustomStorageClient) getPrivateKey(ctx context.Context, keyHandle strin
 			"Failed to unmarshal stored key data", err).
 			WithProvider(CustomStorageProviderName)
 	}
-	
+
 	// Decrypt private key if required
 	privateKeyBytes := storedKey.EncryptedKey
 	if c.config.EncryptAtRest && len(c.encryptionKey) > 0 {
@@ -829,13 +829,13 @@ func (c *CustomStorageClient) getPrivateKey(ctx context.Context, keyHandle strin
 		}
 		privateKeyBytes = decryptedBytes
 	}
-	
+
 	return c.parsePrivateKey(privateKeyBytes)
 }
 
 func (c *CustomStorageClient) updateKeyState(ctx context.Context, keyHandle string, state models.KeyState) error {
 	keyPath := c.getKeyPath(keyHandle)
-	
+
 	data, err := c.storage.Retrieve(ctx, keyPath)
 	if err != nil {
 		return models.NewHSMErrorWithCause(models.ErrCodeKeyNotFound,
@@ -871,22 +871,22 @@ func (c *CustomStorageClient) encryptData(data []byte) ([]byte, []byte, []byte, 
 	if _, err := rand.Read(salt); err != nil {
 		return nil, nil, nil, err
 	}
-	
+
 	block, err := aes.NewCipher(c.encryptionKey)
 	if err != nil {
 		return nil, nil, nil, err
 	}
-	
+
 	gcm, err := cipher.NewGCM(block)
 	if err != nil {
 		return nil, nil, nil, err
 	}
-	
+
 	nonce := make([]byte, gcm.NonceSize())
 	if _, err := rand.Read(nonce); err != nil {
 		return nil, nil, nil, err
 	}
-	
+
 	ciphertext := gcm.Seal(nil, nonce, data, nil)
 	return ciphertext, salt, nonce, nil
 }
@@ -896,12 +896,12 @@ func (c *CustomStorageClient) decryptData(ciphertext, salt, nonce []byte) ([]byt
 	if err != nil {
 		return nil, err
 	}
-	
+
 	gcm, err := cipher.NewGCM(block)
 	if err != nil {
 		return nil, err
 	}
-	
+
 	return gcm.Open(nil, nonce, ciphertext, nil)
 }
 
@@ -924,11 +924,11 @@ func unmarshalECDSASignature(signature []byte) (*big.Int, *big.Int, error) {
 	var sig struct {
 		R, S *big.Int
 	}
-	
+
 	_, err := asn1.Unmarshal(signature, &sig)
 	if err != nil {
 		return nil, nil, err
 	}
-	
+
 	return sig.R, sig.S, nil
 }

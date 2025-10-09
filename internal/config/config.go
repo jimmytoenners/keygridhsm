@@ -11,13 +11,13 @@ import (
 
 // Config represents the main configuration structure
 type Config struct {
-	Server      ServerConfig               `mapstructure:"server"`
-	Providers   map[string]ProviderConfig  `mapstructure:"providers"`
-	Logging     LoggingConfig              `mapstructure:"logging"`
-	Metrics     MetricsConfig              `mapstructure:"metrics"`
-	Audit       AuditConfig                `mapstructure:"audit"`
-	Security    SecurityConfig             `mapstructure:"security"`
-	Development DevelopmentConfig          `mapstructure:"development"`
+	Server      ServerConfig              `mapstructure:"server"`
+	Providers   map[string]ProviderConfig `mapstructure:"providers"`
+	Logging     LoggingConfig             `mapstructure:"logging"`
+	Metrics     MetricsConfig             `mapstructure:"metrics"`
+	Audit       AuditConfig               `mapstructure:"audit"`
+	Security    SecurityConfig            `mapstructure:"security"`
+	Development DevelopmentConfig         `mapstructure:"development"`
 }
 
 // ServerConfig holds server-specific configuration
@@ -46,18 +46,18 @@ type LoggingConfig struct {
 	Format     string `mapstructure:"format"` // json, text
 	Output     string `mapstructure:"output"` // stdout, file
 	FilePath   string `mapstructure:"file_path"`
-	MaxSize    int    `mapstructure:"max_size"`    // megabytes
+	MaxSize    int    `mapstructure:"max_size"` // megabytes
 	MaxBackups int    `mapstructure:"max_backups"`
-	MaxAge     int    `mapstructure:"max_age"`     // days
+	MaxAge     int    `mapstructure:"max_age"` // days
 	Compress   bool   `mapstructure:"compress"`
 }
 
 // MetricsConfig holds metrics configuration
 type MetricsConfig struct {
-	Enabled    bool          `mapstructure:"enabled"`
-	Path       string        `mapstructure:"path"`
-	Port       int           `mapstructure:"port"`
-	Interval   time.Duration `mapstructure:"interval"`
+	Enabled    bool             `mapstructure:"enabled"`
+	Path       string           `mapstructure:"path"`
+	Port       int              `mapstructure:"port"`
+	Interval   time.Duration    `mapstructure:"interval"`
 	Prometheus PrometheusConfig `mapstructure:"prometheus"`
 }
 
@@ -70,38 +70,38 @@ type PrometheusConfig struct {
 
 // AuditConfig holds audit logging configuration
 type AuditConfig struct {
-	Enabled     bool          `mapstructure:"enabled"`
-	BufferSize  int           `mapstructure:"buffer_size"`
-	FlushInterval time.Duration `mapstructure:"flush_interval"`
-	Backend     string        `mapstructure:"backend"` // file, database, syslog
-	Config      map[string]interface{} `mapstructure:"config"`
+	Enabled       bool                   `mapstructure:"enabled"`
+	BufferSize    int                    `mapstructure:"buffer_size"`
+	FlushInterval time.Duration          `mapstructure:"flush_interval"`
+	Backend       string                 `mapstructure:"backend"` // file, database, syslog
+	Config        map[string]interface{} `mapstructure:"config"`
 }
 
 // SecurityConfig holds security-related configuration
 type SecurityConfig struct {
-	EnableTLS       bool          `mapstructure:"enable_tls"`
-	TLSMinVersion   string        `mapstructure:"tls_min_version"`
-	APIKeyAuth      bool          `mapstructure:"api_key_auth"`
-	JWTAuth         JWTAuthConfig `mapstructure:"jwt_auth"`
-	RateLimiting    RateLimitConfig `mapstructure:"rate_limiting"`
-	CORS            CORSConfig    `mapstructure:"cors"`
+	EnableTLS     bool            `mapstructure:"enable_tls"`
+	TLSMinVersion string          `mapstructure:"tls_min_version"`
+	APIKeyAuth    bool            `mapstructure:"api_key_auth"`
+	JWTAuth       JWTAuthConfig   `mapstructure:"jwt_auth"`
+	RateLimiting  RateLimitConfig `mapstructure:"rate_limiting"`
+	CORS          CORSConfig      `mapstructure:"cors"`
 }
 
 // JWTAuthConfig holds JWT authentication configuration
 type JWTAuthConfig struct {
-	Enabled    bool   `mapstructure:"enabled"`
-	Secret     string `mapstructure:"secret"`
-	Algorithm  string `mapstructure:"algorithm"`
+	Enabled    bool          `mapstructure:"enabled"`
+	Secret     string        `mapstructure:"secret"`
+	Algorithm  string        `mapstructure:"algorithm"`
 	Expiration time.Duration `mapstructure:"expiration"`
-	Issuer     string `mapstructure:"issuer"`
+	Issuer     string        `mapstructure:"issuer"`
 }
 
 // RateLimitConfig holds rate limiting configuration
 type RateLimitConfig struct {
-	Enabled     bool          `mapstructure:"enabled"`
-	RequestsPerSecond float64 `mapstructure:"requests_per_second"`
-	BurstSize   int           `mapstructure:"burst_size"`
-	WindowSize  time.Duration `mapstructure:"window_size"`
+	Enabled           bool          `mapstructure:"enabled"`
+	RequestsPerSecond float64       `mapstructure:"requests_per_second"`
+	BurstSize         int           `mapstructure:"burst_size"`
+	WindowSize        time.Duration `mapstructure:"window_size"`
 }
 
 // CORSConfig holds CORS configuration
@@ -142,7 +142,7 @@ func DefaultConfig() *Config {
 				Config: map[string]interface{}{
 					"persistent_storage": false,
 					"simulate_errors":    false,
-					"max_keys":          1000,
+					"max_keys":           1000,
 				},
 			},
 		},
@@ -192,7 +192,7 @@ func DefaultConfig() *Config {
 				WindowSize:        time.Minute,
 			},
 			CORS: CORSConfig{
-				Enabled: false,
+				Enabled:        false,
 				AllowedOrigins: []string{"*"},
 				AllowedMethods: []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 				AllowedHeaders: []string{"*"},
@@ -316,7 +316,7 @@ func (c *Config) Validate() error {
 		if c.Server.TLSKeyFile == "" {
 			return fmt.Errorf("TLS key file is required when TLS is enabled")
 		}
-		
+
 		// Check if files exist
 		if _, err := os.Stat(c.Server.TLSCertFile); os.IsNotExist(err) {
 			return fmt.Errorf("TLS cert file does not exist: %s", c.Server.TLSCertFile)
@@ -364,7 +364,7 @@ func (c *Config) Validate() error {
 		if c.Security.JWTAuth.Secret == "" {
 			return fmt.Errorf("JWT secret is required when JWT auth is enabled")
 		}
-		
+
 		validJWTAlgorithms := []string{"HS256", "HS384", "HS512", "RS256", "RS384", "RS512"}
 		if !contains(validJWTAlgorithms, c.Security.JWTAuth.Algorithm) {
 			return fmt.Errorf("invalid JWT algorithm: %s", c.Security.JWTAuth.Algorithm)
@@ -376,7 +376,7 @@ func (c *Config) Validate() error {
 		if provider.Type == "" {
 			return fmt.Errorf("provider %s: type is required", name)
 		}
-		
+
 		validProviderTypes := []string{"azure-keyvault", "custom-storage", "mock-hsm"}
 		if !contains(validProviderTypes, provider.Type) {
 			return fmt.Errorf("provider %s: invalid type: %s", name, provider.Type)

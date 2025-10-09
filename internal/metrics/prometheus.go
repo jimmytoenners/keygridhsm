@@ -16,24 +16,24 @@ const (
 // PrometheusCollector implements metrics collection using Prometheus
 type PrometheusCollector struct {
 	// Counter metrics
-	operationsTotal          *prometheus.CounterVec
-	errorsTotal             *prometheus.CounterVec
-	authenticationAttempts  *prometheus.CounterVec
-	auditEventsTotal        *prometheus.CounterVec
-	
+	operationsTotal        *prometheus.CounterVec
+	errorsTotal            *prometheus.CounterVec
+	authenticationAttempts *prometheus.CounterVec
+	auditEventsTotal       *prometheus.CounterVec
+
 	// Histogram metrics
-	operationDuration       *prometheus.HistogramVec
-	requestSize            *prometheus.HistogramVec
-	responseSize           *prometheus.HistogramVec
-	
+	operationDuration *prometheus.HistogramVec
+	requestSize       *prometheus.HistogramVec
+	responseSize      *prometheus.HistogramVec
+
 	// Gauge metrics
-	activeConnections      prometheus.Gauge
-	registeredProviders    prometheus.Gauge
-	activeKeys            *prometheus.GaugeVec
-	healthStatus          *prometheus.GaugeVec
-	
+	activeConnections   prometheus.Gauge
+	registeredProviders prometheus.Gauge
+	activeKeys          *prometheus.GaugeVec
+	healthStatus        *prometheus.GaugeVec
+
 	// Summary metrics
-	keyOperationLatency    *prometheus.SummaryVec
+	keyOperationLatency *prometheus.SummaryVec
 }
 
 // NewPrometheusCollector creates a new Prometheus metrics collector
@@ -47,7 +47,7 @@ func NewPrometheusCollector() *PrometheusCollector {
 			},
 			[]string{"provider", "operation", "status"},
 		),
-		
+
 		errorsTotal: promauto.NewCounterVec(
 			prometheus.CounterOpts{
 				Namespace: MetricsNamespace,
@@ -56,7 +56,7 @@ func NewPrometheusCollector() *PrometheusCollector {
 			},
 			[]string{"provider", "operation", "error_type"},
 		),
-		
+
 		authenticationAttempts: promauto.NewCounterVec(
 			prometheus.CounterOpts{
 				Namespace: MetricsNamespace,
@@ -65,7 +65,7 @@ func NewPrometheusCollector() *PrometheusCollector {
 			},
 			[]string{"method", "status"},
 		),
-		
+
 		auditEventsTotal: promauto.NewCounterVec(
 			prometheus.CounterOpts{
 				Namespace: MetricsNamespace,
@@ -74,7 +74,7 @@ func NewPrometheusCollector() *PrometheusCollector {
 			},
 			[]string{"event_type", "provider"},
 		),
-		
+
 		operationDuration: promauto.NewHistogramVec(
 			prometheus.HistogramOpts{
 				Namespace: MetricsNamespace,
@@ -84,7 +84,7 @@ func NewPrometheusCollector() *PrometheusCollector {
 			},
 			[]string{"provider", "operation"},
 		),
-		
+
 		requestSize: promauto.NewHistogramVec(
 			prometheus.HistogramOpts{
 				Namespace: MetricsNamespace,
@@ -94,7 +94,7 @@ func NewPrometheusCollector() *PrometheusCollector {
 			},
 			[]string{"endpoint"},
 		),
-		
+
 		responseSize: promauto.NewHistogramVec(
 			prometheus.HistogramOpts{
 				Namespace: MetricsNamespace,
@@ -104,7 +104,7 @@ func NewPrometheusCollector() *PrometheusCollector {
 			},
 			[]string{"endpoint"},
 		),
-		
+
 		activeConnections: promauto.NewGauge(
 			prometheus.GaugeOpts{
 				Namespace: MetricsNamespace,
@@ -112,7 +112,7 @@ func NewPrometheusCollector() *PrometheusCollector {
 				Help:      "Number of active connections",
 			},
 		),
-		
+
 		registeredProviders: promauto.NewGauge(
 			prometheus.GaugeOpts{
 				Namespace: MetricsNamespace,
@@ -120,7 +120,7 @@ func NewPrometheusCollector() *PrometheusCollector {
 				Help:      "Number of registered HSM providers",
 			},
 		),
-		
+
 		activeKeys: promauto.NewGaugeVec(
 			prometheus.GaugeOpts{
 				Namespace: MetricsNamespace,
@@ -129,7 +129,7 @@ func NewPrometheusCollector() *PrometheusCollector {
 			},
 			[]string{"provider", "key_type"},
 		),
-		
+
 		healthStatus: promauto.NewGaugeVec(
 			prometheus.GaugeOpts{
 				Namespace: MetricsNamespace,
@@ -138,7 +138,7 @@ func NewPrometheusCollector() *PrometheusCollector {
 			},
 			[]string{"provider", "component"},
 		),
-		
+
 		keyOperationLatency: promauto.NewSummaryVec(
 			prometheus.SummaryOpts{
 				Namespace:  MetricsNamespace,
@@ -245,18 +245,18 @@ func (p *PrometheusCollector) Middleware() func(next http.Handler) http.Handler 
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			start := time.Now()
-			
+
 			// Record request size
 			if r.ContentLength > 0 {
 				p.RecordRequestSize(r.URL.Path, float64(r.ContentLength))
 			}
-			
+
 			// Call next handler
 			next.ServeHTTP(w, r)
-			
+
 			// Record response size (if available)
 			// This would require a response writer wrapper to capture size
-			
+
 			// Record request duration
 			duration := time.Since(start)
 			status := "success" // This would need to be determined from response

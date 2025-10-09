@@ -44,23 +44,23 @@ type MockHSMClient struct {
 
 // MockHSMConfig holds configuration for the mock HSM provider
 type MockHSMConfig struct {
-	PersistentStorage   bool                   `json:"persistent_storage"`
-	StorageConfig       map[string]interface{} `json:"storage_config"`
-	SimulateErrors      bool                   `json:"simulate_errors"`
-	SimulateLatency     time.Duration          `json:"simulate_latency"`
-	MaxKeys             int                    `json:"max_keys"`
-	KeyPrefix           string                 `json:"key_prefix"`
-	TestScenarios       []string               `json:"test_scenarios"`
+	PersistentStorage bool                   `json:"persistent_storage"`
+	StorageConfig     map[string]interface{} `json:"storage_config"`
+	SimulateErrors    bool                   `json:"simulate_errors"`
+	SimulateLatency   time.Duration          `json:"simulate_latency"`
+	MaxKeys           int                    `json:"max_keys"`
+	KeyPrefix         string                 `json:"key_prefix"`
+	TestScenarios     []string               `json:"test_scenarios"`
 }
 
 // MockKeyEntry stores a key and its metadata in the mock HSM
 type MockKeyEntry struct {
-	Handle     *models.KeyHandle
-	PrivateKey crypto.PrivateKey
-	PublicKey  crypto.PublicKey
-	CreatedAt  time.Time
+	Handle      *models.KeyHandle
+	PrivateKey  crypto.PrivateKey
+	PublicKey   crypto.PublicKey
+	CreatedAt   time.Time
 	AccessCount int
-	LastAccess time.Time
+	LastAccess  time.Time
 }
 
 // TestScenario represents different testing scenarios the mock can simulate
@@ -114,7 +114,7 @@ func NewMockHSMProvider(logger *logrus.Logger) *MockHSMProvider {
 	if logger == nil {
 		logger = logrus.New()
 	}
-	
+
 	return &MockHSMProvider{
 		logger: logger,
 	}
@@ -196,7 +196,7 @@ func (p *MockHSMProvider) CreateClient(config map[string]interface{}) (models.HS
 				"storage_type": "memory",
 			}
 		}
-		
+
 		// Create storage backend (reusing custom storage backend implementation)
 		customProvider := NewCustomStorageProvider(p.logger)
 		storage, err := customProvider.createStorageBackend(&CustomStorageConfig{
@@ -209,9 +209,9 @@ func (p *MockHSMProvider) CreateClient(config map[string]interface{}) (models.HS
 				"Failed to create mock HSM storage backend", err).
 				WithProvider(MockHSMProviderName)
 		}
-		
+
 		client.storageBackend = storage
-		
+
 		// Load existing keys if storage is available
 		if err := client.loadKeysFromStorage(context.Background()); err != nil {
 			p.logger.WithError(err).Warn("Failed to load keys from persistent storage")
@@ -221,8 +221,8 @@ func (p *MockHSMProvider) CreateClient(config map[string]interface{}) (models.HS
 	p.logger.WithFields(logrus.Fields{
 		"persistent_storage": mockConfig.PersistentStorage,
 		"simulate_errors":    mockConfig.SimulateErrors,
-		"latency":           mockConfig.SimulateLatency,
-		"test_scenarios":    mockConfig.TestScenarios,
+		"latency":            mockConfig.SimulateLatency,
+		"test_scenarios":     mockConfig.TestScenarios,
 	}).Info("Created mock HSM client")
 
 	return client, nil
@@ -241,12 +241,12 @@ func (p *MockHSMProvider) Shutdown() error {
 // Client interface implementation
 func (c *MockHSMClient) Health(ctx context.Context) (*models.HealthStatus, error) {
 	start := time.Now()
-	
+
 	// Simulate latency if configured
 	if c.latency > 0 {
 		time.Sleep(c.latency)
 	}
-	
+
 	// Check for test scenarios that should affect health
 	if err := c.checkTestScenarios(ctx, "health"); err != nil {
 		return &models.HealthStatus{
@@ -257,7 +257,7 @@ func (c *MockHSMClient) Health(ctx context.Context) (*models.HealthStatus, error
 			ResponseTime: time.Since(start),
 			Details: map[string]string{
 				"simulate_errors": fmt.Sprintf("%t", c.simulateErrors),
-				"key_count":      fmt.Sprintf("%d", len(c.keys)),
+				"key_count":       fmt.Sprintf("%d", len(c.keys)),
 			},
 		}, err
 	}
@@ -265,9 +265,9 @@ func (c *MockHSMClient) Health(ctx context.Context) (*models.HealthStatus, error
 	details := map[string]string{
 		"mode":            "mock",
 		"simulate_errors": fmt.Sprintf("%t", c.simulateErrors),
-		"key_count":      fmt.Sprintf("%d", len(c.keys)),
+		"key_count":       fmt.Sprintf("%d", len(c.keys)),
 	}
-	
+
 	if c.storageBackend != nil {
 		details["persistent_storage"] = "true"
 	}
@@ -285,17 +285,17 @@ func (c *MockHSMClient) GetProviderInfo(ctx context.Context) (map[string]interfa
 	info := map[string]interface{}{
 		"provider":           MockHSMProviderName,
 		"version":            MockHSMProviderVersion,
-		"mode":              "mock",
+		"mode":               "mock",
 		"persistent_storage": c.config.PersistentStorage,
 		"simulate_errors":    c.simulateErrors,
 		"test_scenarios":     c.config.TestScenarios,
-		"key_count":         len(c.keys),
+		"key_count":          len(c.keys),
 	}
-	
+
 	if c.latency > 0 {
 		info["simulated_latency"] = c.latency.String()
 	}
-	
+
 	return info, nil
 }
 
@@ -303,9 +303,9 @@ func (c *MockHSMClient) GenerateKey(ctx context.Context, spec models.KeySpec, na
 	if err := c.checkTestScenarios(ctx, "generate_key"); err != nil {
 		return nil, err
 	}
-	
+
 	c.simulateLatency()
-	
+
 	// Check key limit
 	if c.config.MaxKeys > 0 && len(c.keys) >= c.config.MaxKeys {
 		return nil, models.NewHSMError(models.ErrCodeQuotaExceeded,
@@ -378,7 +378,7 @@ func (c *MockHSMClient) ImportKey(ctx context.Context, keyData []byte, spec mode
 	if err := c.checkTestScenarios(ctx, "import_key"); err != nil {
 		return nil, err
 	}
-	
+
 	c.simulateLatency()
 
 	// For mock HSM, we'll just generate a new key and pretend it was imported
@@ -389,7 +389,7 @@ func (c *MockHSMClient) GetKey(ctx context.Context, keyHandle string) (*models.K
 	if err := c.checkTestScenarios(ctx, "get_key"); err != nil {
 		return nil, err
 	}
-	
+
 	c.simulateLatency()
 
 	c.keysMutex.RLock()
@@ -413,7 +413,7 @@ func (c *MockHSMClient) ListKeys(ctx context.Context) ([]*models.KeyHandle, erro
 	if err := c.checkTestScenarios(ctx, "list_keys"); err != nil {
 		return nil, err
 	}
-	
+
 	c.simulateLatency()
 
 	c.keysMutex.RLock()
@@ -431,7 +431,7 @@ func (c *MockHSMClient) DeleteKey(ctx context.Context, keyHandle string) error {
 	if err := c.checkTestScenarios(ctx, "delete_key"); err != nil {
 		return err
 	}
-	
+
 	c.simulateLatency()
 
 	c.keysMutex.Lock()
@@ -468,7 +468,7 @@ func (c *MockHSMClient) SetKeyExpiration(ctx context.Context, keyHandle string, 
 	if err := c.checkTestScenarios(ctx, "set_key_expiration"); err != nil {
 		return err
 	}
-	
+
 	c.simulateLatency()
 
 	c.keysMutex.Lock()
@@ -491,7 +491,7 @@ func (c *MockHSMClient) GetPublicKey(ctx context.Context, keyHandle string) (cry
 	if err := c.checkTestScenarios(ctx, "get_public_key"); err != nil {
 		return nil, err
 	}
-	
+
 	c.simulateLatency()
 
 	c.keysMutex.RLock()
@@ -515,7 +515,7 @@ func (c *MockHSMClient) Sign(ctx context.Context, request models.SigningRequest)
 	if err := c.checkTestScenarios(ctx, "sign"); err != nil {
 		return nil, err
 	}
-	
+
 	c.simulateLatency()
 
 	c.keysMutex.RLock()
@@ -562,7 +562,7 @@ func (c *MockHSMClient) Verify(ctx context.Context, keyHandle string, data, sign
 	if err := c.checkTestScenarios(ctx, "verify"); err != nil {
 		return false, err
 	}
-	
+
 	c.simulateLatency()
 
 	publicKey, err := c.GetPublicKey(ctx, keyHandle)
@@ -577,7 +577,7 @@ func (c *MockHSMClient) Encrypt(ctx context.Context, request models.EncryptionRe
 	if err := c.checkTestScenarios(ctx, "encrypt"); err != nil {
 		return nil, err
 	}
-	
+
 	c.simulateLatency()
 
 	// For mock HSM, return mock encrypted data
@@ -595,7 +595,7 @@ func (c *MockHSMClient) Decrypt(ctx context.Context, request models.DecryptionRe
 	if err := c.checkTestScenarios(ctx, "decrypt"); err != nil {
 		return nil, err
 	}
-	
+
 	c.simulateLatency()
 
 	// For mock HSM, return mock decrypted data
@@ -620,7 +620,7 @@ func (c *MockHSMClient) WrapKey(ctx context.Context, request models.KeyWrapReque
 	if err := c.checkTestScenarios(ctx, "wrap_key"); err != nil {
 		return nil, err
 	}
-	
+
 	c.simulateLatency()
 
 	// For mock HSM, return mock wrapped key
@@ -638,7 +638,7 @@ func (c *MockHSMClient) UnwrapKey(ctx context.Context, request models.KeyUnwrapR
 	if err := c.checkTestScenarios(ctx, "unwrap_key"); err != nil {
 		return nil, err
 	}
-	
+
 	c.simulateLatency()
 
 	// For mock HSM, return mock unwrapped key
@@ -672,31 +672,31 @@ func parseMockHSMConfig(config map[string]interface{}) (*MockHSMConfig, error) {
 		KeyPrefix: "mock-hsm",
 		MaxKeys:   1000, // Default key limit
 	}
-	
+
 	if persistentStorage, ok := config["persistent_storage"].(bool); ok {
 		mockConfig.PersistentStorage = persistentStorage
 	}
-	
+
 	if storageConfig, ok := config["storage_config"].(map[string]interface{}); ok {
 		mockConfig.StorageConfig = storageConfig
 	}
-	
+
 	if simulateErrors, ok := config["simulate_errors"].(bool); ok {
 		mockConfig.SimulateErrors = simulateErrors
 	}
-	
+
 	if latencyMs, ok := config["simulate_latency_ms"].(float64); ok {
 		mockConfig.SimulateLatency = time.Duration(latencyMs) * time.Millisecond
 	}
-	
+
 	if maxKeys, ok := config["max_keys"].(float64); ok {
 		mockConfig.MaxKeys = int(maxKeys)
 	}
-	
+
 	if keyPrefix, ok := config["key_prefix"].(string); ok {
 		mockConfig.KeyPrefix = keyPrefix
 	}
-	
+
 	if scenarios, ok := config["test_scenarios"].([]interface{}); ok {
 		for _, scenario := range scenarios {
 			if scenarioStr, ok := scenario.(string); ok {
@@ -704,7 +704,7 @@ func parseMockHSMConfig(config map[string]interface{}) (*MockHSMConfig, error) {
 			}
 		}
 	}
-	
+
 	return mockConfig, nil
 }
 
@@ -716,7 +716,7 @@ func (c *MockHSMClient) generateKeyPair(spec models.KeySpec) (crypto.PrivateKey,
 			return nil, nil, err
 		}
 		return privateKey, &privateKey.PublicKey, nil
-		
+
 	case models.KeyTypeECDSA:
 		var curve elliptic.Curve
 		switch spec.KeySize {
@@ -729,20 +729,20 @@ func (c *MockHSMClient) generateKeyPair(spec models.KeySpec) (crypto.PrivateKey,
 		default:
 			return nil, nil, fmt.Errorf("unsupported ECDSA key size: %d", spec.KeySize)
 		}
-		
+
 		privateKey, err := ecdsa.GenerateKey(curve, rand.Reader)
 		if err != nil {
 			return nil, nil, err
 		}
 		return privateKey, &privateKey.PublicKey, nil
-		
+
 	case models.KeyTypeEd25519:
 		publicKey, privateKey, err := ed25519.GenerateKey(rand.Reader)
 		if err != nil {
 			return nil, nil, err
 		}
 		return privateKey, publicKey, nil
-		
+
 	default:
 		return nil, nil, fmt.Errorf("unsupported key type: %s", spec.KeyType)
 	}
@@ -821,7 +821,7 @@ func (c *MockHSMClient) updateKeyState(ctx context.Context, keyHandle string, st
 	if err := c.checkTestScenarios(ctx, "update_key_state"); err != nil {
 		return err
 	}
-	
+
 	c.simulateLatency()
 
 	c.keysMutex.Lock()
@@ -866,10 +866,10 @@ func (c *MockHSMClient) saveKeyToStorage(ctx context.Context, entry *MockKeyEntr
 	}
 
 	keyPath := c.getKeyPath(entry.Handle.ID)
-	
+
 	// For mock implementation, just save minimal metadata
 	data := []byte(fmt.Sprintf("mock_key_%s_%s", entry.Handle.ID, entry.Handle.KeyType))
-	
+
 	return c.storageBackend.Store(ctx, keyPath, data)
 }
 

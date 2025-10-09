@@ -10,10 +10,10 @@ import (
 type Auditor interface {
 	// LogEvent logs an audit event
 	LogEvent(ctx context.Context, event models.AuditEvent) error
-	
+
 	// LogEvents logs multiple audit events in batch
 	LogEvents(ctx context.Context, events []models.AuditEvent) error
-	
+
 	// Close closes the auditor and flushes any pending events
 	Close() error
 }

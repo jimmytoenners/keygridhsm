@@ -364,10 +364,10 @@ func (s *HSMServer) handleProviderHealth(w http.ResponseWriter, r *http.Request)
 
 func (s *HSMServer) handleGenerateKey(w http.ResponseWriter, r *http.Request) {
 	var req struct {
-		Provider string          `json:"provider"`
-		Config   interface{}     `json:"config"`
-		KeySpec  models.KeySpec  `json:"key_spec"`
-		Name     string          `json:"name"`
+		Provider string         `json:"provider"`
+		Config   interface{}    `json:"config"`
+		KeySpec  models.KeySpec `json:"key_spec"`
+		Name     string         `json:"name"`
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -536,8 +536,8 @@ func (s *HSMServer) sendJSONResponse(w http.ResponseWriter, statusCode int, data
 
 func (s *HSMServer) sendErrorResponse(w http.ResponseWriter, statusCode int, message string, err error) {
 	response := map[string]interface{}{
-		"error":   message,
-		"status":  statusCode,
+		"error":     message,
+		"status":    statusCode,
 		"timestamp": time.Now().UTC(),
 	}
 	if err != nil {

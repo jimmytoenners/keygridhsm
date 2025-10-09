@@ -15,49 +15,49 @@ import (
 
 func TestProviderRegistry_RegisterProvider(t *testing.T) {
 	tests := []struct {
-		name        string
+		name         string
 		providerName string
-		provider    models.HSMProvider
-		expectError bool
+		provider     models.HSMProvider
+		expectError  bool
 	}{
 		{
-			name:        "Register valid provider",
+			name:         "Register valid provider",
 			providerName: "test-provider",
-			provider:    providers.NewMockHSMProvider(logrus.New()),
-			expectError: false,
+			provider:     providers.NewMockHSMProvider(logrus.New()),
+			expectError:  false,
 		},
 		{
-			name:        "Register duplicate provider",
+			name:         "Register duplicate provider",
 			providerName: "duplicate",
-			provider:    providers.NewMockHSMProvider(logrus.New()),
-			expectError: true, // Should fail on second registration
+			provider:     providers.NewMockHSMProvider(logrus.New()),
+			expectError:  true, // Should fail on second registration
 		},
 		{
-			name:        "Register with empty name",
+			name:         "Register with empty name",
 			providerName: "",
-			provider:    providers.NewMockHSMProvider(logrus.New()),
-			expectError: false, // Current implementation allows empty names
+			provider:     providers.NewMockHSMProvider(logrus.New()),
+			expectError:  false, // Current implementation allows empty names
 		},
 		{
-			name:        "Register nil provider",
+			name:         "Register nil provider",
 			providerName: "nil-provider",
-			provider:    nil,
-			expectError: false, // Current implementation allows nil providers
+			provider:     nil,
+			expectError:  false, // Current implementation allows nil providers
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			registry := core.NewProviderRegistry()
-			
+
 			// For duplicate test, register first
 			if tt.name == "Register duplicate provider" {
 				err := registry.RegisterProvider(tt.providerName, providers.NewMockHSMProvider(logrus.New()))
 				require.NoError(t, err)
 			}
-			
+
 			err := registry.RegisterProvider(tt.providerName, tt.provider)
-			
+
 			if tt.expectError {
 				assert.Error(t, err)
 			} else {
@@ -70,11 +70,11 @@ func TestProviderRegistry_RegisterProvider(t *testing.T) {
 func TestProviderRegistry_GetProvider(t *testing.T) {
 	registry := core.NewProviderRegistry()
 	mockProvider := providers.NewMockHSMProvider(logrus.New())
-	
+
 	// Register a provider
 	err := registry.RegisterProvider("mock", mockProvider)
 	require.NoError(t, err)
-	
+
 	tests := []struct {
 		name         string
 		providerName string
@@ -100,7 +100,7 @@ func TestProviderRegistry_GetProvider(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			provider, err := registry.GetProvider(tt.providerName)
-			
+
 			if tt.expectFound {
 				assert.NoError(t, err)
 				assert.NotNil(t, provider)
@@ -115,21 +115,21 @@ func TestProviderRegistry_GetProvider(t *testing.T) {
 
 func TestProviderRegistry_ListProviders(t *testing.T) {
 	registry := core.NewProviderRegistry()
-	
+
 	// Test empty registry
 	providerList := registry.ListProviders()
 	assert.Empty(t, providerList)
-	
+
 	// Add providers
 	mockProvider := providers.NewMockHSMProvider(logrus.New())
 	customProvider := providers.NewCustomStorageProvider(logrus.New())
-	
+
 	err := registry.RegisterProvider("mock", mockProvider)
 	require.NoError(t, err)
-	
+
 	err = registry.RegisterProvider("custom", customProvider)
 	require.NoError(t, err)
-	
+
 	// Test populated registry
 	providerList = registry.ListProviders()
 	assert.Len(t, providerList, 2)
@@ -140,10 +140,10 @@ func TestProviderRegistry_ListProviders(t *testing.T) {
 func TestProviderRegistry_CreateClient(t *testing.T) {
 	registry := core.NewProviderRegistry()
 	mockProvider := providers.NewMockHSMProvider(logrus.New())
-	
+
 	err := registry.RegisterProvider("mock", mockProvider)
 	require.NoError(t, err)
-	
+
 	tests := []struct {
 		name         string
 		providerName string
@@ -156,7 +156,7 @@ func TestProviderRegistry_CreateClient(t *testing.T) {
 			config: map[string]interface{}{
 				"persistent_storage": false,
 				"simulate_errors":    false,
-				"max_keys":          100,
+				"max_keys":           100,
 			},
 			expectError: false,
 		},
@@ -179,7 +179,7 @@ func TestProviderRegistry_CreateClient(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			client, err := registry.CreateClient(tt.providerName, tt.config)
-			
+
 			if tt.expectError {
 				assert.Error(t, err)
 				assert.Nil(t, client)
@@ -194,23 +194,23 @@ func TestProviderRegistry_CreateClient(t *testing.T) {
 func TestProviderRegistry_UnregisterProvider(t *testing.T) {
 	registry := core.NewProviderRegistry()
 	mockProvider := providers.NewMockHSMProvider(logrus.New())
-	
+
 	// Register provider
 	err := registry.RegisterProvider("mock", mockProvider)
 	require.NoError(t, err)
-	
+
 	// Verify it exists
 	_, err = registry.GetProvider("mock")
 	assert.NoError(t, err)
-	
+
 	// Unregister provider
 	err = registry.UnregisterProvider("mock")
 	assert.NoError(t, err)
-	
+
 	// Verify it's gone
 	_, err = registry.GetProvider("mock")
 	assert.Error(t, err)
-	
+
 	// Try to unregister non-existent provider
 	err = registry.UnregisterProvider("non-existent")
 	assert.Error(t, err)
@@ -218,10 +218,10 @@ func TestProviderRegistry_UnregisterProvider(t *testing.T) {
 
 func TestProviderRegistry_ConcurrentAccess(t *testing.T) {
 	registry := core.NewProviderRegistry()
-	
+
 	// Test concurrent registration
 	done := make(chan bool, 10)
-	
+
 	for i := 0; i < 10; i++ {
 		go func(id int) {
 			providerName := fmt.Sprintf("provider-%d", id)
@@ -231,23 +231,23 @@ func TestProviderRegistry_ConcurrentAccess(t *testing.T) {
 			done <- true
 		}(i)
 	}
-	
+
 	// Wait for all goroutines to complete
 	for i := 0; i < 10; i++ {
 		<-done
 	}
-	
+
 	// Verify all providers were registered
 	providerList := registry.ListProviders()
 	assert.Len(t, providerList, 10)
-	
+
 	// Test concurrent client creation
 	for i := 0; i < 10; i++ {
 		go func(id int) {
 			providerName := fmt.Sprintf("provider-%d", id)
 			config := map[string]interface{}{
 				"persistent_storage": false,
-				"max_keys":          100,
+				"max_keys":           100,
 			}
 			client, err := registry.CreateClient(providerName, config)
 			assert.NoError(t, err)
@@ -255,7 +255,7 @@ func TestProviderRegistry_ConcurrentAccess(t *testing.T) {
 			done <- true
 		}(i)
 	}
-	
+
 	// Wait for all client creations to complete
 	for i := 0; i < 10; i++ {
 		<-done
@@ -264,7 +264,7 @@ func TestProviderRegistry_ConcurrentAccess(t *testing.T) {
 
 func BenchmarkProviderRegistry_RegisterProvider(b *testing.B) {
 	registry := core.NewProviderRegistry()
-	
+
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		providerName := fmt.Sprintf("provider-%d", i)
@@ -275,14 +275,14 @@ func BenchmarkProviderRegistry_RegisterProvider(b *testing.B) {
 
 func BenchmarkProviderRegistry_GetProvider(b *testing.B) {
 	registry := core.NewProviderRegistry()
-	
+
 	// Pre-populate registry
 	for i := 0; i < 100; i++ {
 		providerName := fmt.Sprintf("provider-%d", i)
 		provider := providers.NewMockHSMProvider(logrus.New())
 		_ = registry.RegisterProvider(providerName, provider)
 	}
-	
+
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		providerName := fmt.Sprintf("provider-%d", i%100)
@@ -294,12 +294,12 @@ func BenchmarkProviderRegistry_CreateClient(b *testing.B) {
 	registry := core.NewProviderRegistry()
 	mockProvider := providers.NewMockHSMProvider(logrus.New())
 	_ = registry.RegisterProvider("mock", mockProvider)
-	
+
 	config := map[string]interface{}{
 		"persistent_storage": false,
-		"max_keys":          100,
+		"max_keys":           100,
 	}
-	
+
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		_, _ = registry.CreateClient("mock", config)

@@ -74,7 +74,7 @@ func (s *HTTPServer) setupRoutes() {
 // Start starts the HTTP server
 func (s *HTTPServer) Start() error {
 	addr := fmt.Sprintf("%s:%s", s.config.Host, s.config.Port)
-	
+
 	s.httpServer = &http.Server{
 		Addr:         addr,
 		Handler:      s.router,
@@ -139,7 +139,7 @@ func (s *HTTPServer) providerHealthHandler(w http.ResponseWriter, r *http.Reques
 	// This would need to be implemented in the HSM manager
 	// ctx := r.Context()
 	// healthy, err := s.config.Manager.CheckProviderHealth(ctx, providerName)
-	
+
 	// Placeholder implementation
 	response := map[string]interface{}{
 		"provider": providerName,
@@ -157,11 +157,11 @@ func (s *HTTPServer) generateKeyHandler(w http.ResponseWriter, r *http.Request) 
 	providerName := vars["provider"]
 
 	var req struct {
-		KeyName   string            `json:"keyName"`
-		KeyType   models.KeyType    `json:"keyType"`
-		KeySize   int               `json:"keySize"`
-		Algorithm string            `json:"algorithm"`
-		Usage     []models.KeyUsage `json:"usage"`
+		KeyName   string                 `json:"keyName"`
+		KeyType   models.KeyType         `json:"keyType"`
+		KeySize   int                    `json:"keySize"`
+		Algorithm string                 `json:"algorithm"`
+		Usage     []models.KeyUsage      `json:"usage"`
 		Config    map[string]interface{} `json:"config"`
 	}
 
@@ -198,8 +198,8 @@ func (s *HTTPServer) listKeysHandler(w http.ResponseWriter, r *http.Request) {
 	config := map[string]interface{}{
 		"persistent_storage": false,
 		"simulate_errors":    false,
-		"max_keys":          1000,
-		"key_prefix":        "api",
+		"max_keys":           1000,
+		"key_prefix":         "api",
 	}
 
 	ctx := r.Context()
@@ -210,8 +210,8 @@ func (s *HTTPServer) listKeysHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	response := map[string]interface{}{
-		"keys":    keys,
-		"count":   len(keys),
+		"keys":     keys,
+		"count":    len(keys),
 		"provider": providerName,
 	}
 
@@ -228,8 +228,8 @@ func (s *HTTPServer) getKeyHandler(w http.ResponseWriter, r *http.Request) {
 	config := map[string]interface{}{
 		"persistent_storage": false,
 		"simulate_errors":    false,
-		"max_keys":          1000,
-		"key_prefix":        "api",
+		"max_keys":           1000,
+		"key_prefix":         "api",
 	}
 
 	ctx := r.Context()
@@ -250,8 +250,8 @@ func (s *HTTPServer) signHandler(w http.ResponseWriter, r *http.Request) {
 	keyID := vars["keyId"]
 
 	var req struct {
-		Data      []byte `json:"data"`
-		Algorithm string `json:"algorithm"`
+		Data      []byte                 `json:"data"`
+		Algorithm string                 `json:"algorithm"`
 		Config    map[string]interface{} `json:"config"`
 	}
 
@@ -284,9 +284,9 @@ func (s *HTTPServer) verifyHandler(w http.ResponseWriter, r *http.Request) {
 	keyID := vars["keyId"]
 
 	var req struct {
-		Data      []byte `json:"data"`
-		Signature []byte `json:"signature"`
-		Algorithm string `json:"algorithm"`
+		Data      []byte                 `json:"data"`
+		Signature []byte                 `json:"signature"`
+		Algorithm string                 `json:"algorithm"`
 		Config    map[string]interface{} `json:"config"`
 	}
 
@@ -333,8 +333,8 @@ func (s *HTTPServer) activateKeyHandler(w http.ResponseWriter, r *http.Request) 
 	config := map[string]interface{}{
 		"persistent_storage": false,
 		"simulate_errors":    false,
-		"max_keys":          1000,
-		"key_prefix":        "api",
+		"max_keys":           1000,
+		"key_prefix":         "api",
 	}
 
 	ctx := r.Context()
@@ -363,8 +363,8 @@ func (s *HTTPServer) deactivateKeyHandler(w http.ResponseWriter, r *http.Request
 	config := map[string]interface{}{
 		"persistent_storage": false,
 		"simulate_errors":    false,
-		"max_keys":          1000,
-		"key_prefix":        "api",
+		"max_keys":           1000,
+		"key_prefix":         "api",
 	}
 
 	ctx := r.Context()
@@ -393,8 +393,8 @@ func (s *HTTPServer) deleteKeyHandler(w http.ResponseWriter, r *http.Request) {
 	config := map[string]interface{}{
 		"persistent_storage": false,
 		"simulate_errors":    false,
-		"max_keys":          1000,
-		"key_prefix":        "api",
+		"max_keys":           1000,
+		"key_prefix":         "api",
 	}
 
 	ctx := r.Context()
@@ -413,18 +413,18 @@ func (s *HTTPServer) deleteKeyHandler(w http.ResponseWriter, r *http.Request) {
 func (s *HTTPServer) loggingMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
-		
+
 		// Create a response writer wrapper to capture status code
 		rw := &responseWriter{ResponseWriter: w, statusCode: http.StatusOK}
-		
+
 		next.ServeHTTP(rw, r)
-		
+
 		duration := time.Since(start)
 		s.config.Logger.WithFields(logrus.Fields{
-			"method":     r.Method,
-			"path":       r.URL.Path,
-			"status":     rw.statusCode,
-			"duration":   duration,
+			"method":      r.Method,
+			"path":        r.URL.Path,
+			"status":      rw.statusCode,
+			"duration":    duration,
 			"remote_addr": r.RemoteAddr,
 		}).Info("HTTP request")
 	})
@@ -452,13 +452,13 @@ func (s *HTTPServer) corsMiddleware(next http.Handler) http.Handler {
 func (s *HTTPServer) writeError(w http.ResponseWriter, statusCode int, message string) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(statusCode)
-	
+
 	errorResponse := map[string]interface{}{
 		"error":     true,
 		"message":   message,
 		"timestamp": time.Now().UTC().Format(time.RFC3339),
 	}
-	
+
 	json.NewEncoder(w).Encode(errorResponse)
 }
 
