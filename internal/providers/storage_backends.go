@@ -178,7 +178,7 @@ func (fs *FilesystemStorage) Health(ctx context.Context) error {
 	}
 
 	// Clean up test file
-if removeErr := os.Remove(testFile); removeErr != nil {
+	if removeErr := os.Remove(testFile); removeErr != nil {
 		// Ignore cleanup errors for test file
 		_ = removeErr
 	}

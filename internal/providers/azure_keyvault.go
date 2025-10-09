@@ -910,7 +910,6 @@ func ptrBool(v bool) *bool {
 	return &v
 }
 
-
 func ptrTime(v time.Time) *time.Time {
 	return &v
 }

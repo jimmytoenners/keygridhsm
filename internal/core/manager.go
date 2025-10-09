@@ -598,7 +598,7 @@ func (w *operationWrapper) handleSuccess(metadata map[string]string) {
 // executeWithClient executes an operation function with a client, handling common patterns.
 func (m *HSMManager) executeWithClient(ctx context.Context, providerName string, providerConfig map[string]interface{}, operation string, keyID string, fn func(models.HSMClient) error) error {
 	wrapper := m.newOperationWrapper(ctx, providerName, operation, keyID)
-	
+
 	client, err := m.GetClient(ctx, providerName, providerConfig)
 	if err != nil {
 		return err
@@ -616,7 +616,7 @@ func (m *HSMManager) executeWithClient(ctx context.Context, providerName string,
 func executeWithClientAndReturn[T any](m *HSMManager, ctx context.Context, providerName string, providerConfig map[string]interface{}, operation string, keyID string, fn func(models.HSMClient) (T, error), metadata func(T) map[string]string) (T, error) {
 	wrapper := m.newOperationWrapper(ctx, providerName, operation, keyID)
 	var zero T
-	
+
 	client, err := m.GetClient(ctx, providerName, providerConfig)
 	if err != nil {
 		return zero, err
