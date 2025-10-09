@@ -1,0 +1,932 @@
+{
+  "info": {
+    "name": "KeyGrid HSM API",
+    "description": "Complete API collection for KeyGrid HSM - Enterprise Hardware Security Module\n\n## Features\n- Multi-Provider Support: Azure KeyVault, Custom Storage, Mock HSM\n- Cryptographic Operations: Key generation, signing, verification, encryption, decryption\n- Enterprise Security: Audit logging, metrics, health monitoring\n\n## Quick Start\n1. Set your environment variables (base_url, api_key)\n2. Run the Health Check folder to verify connectivity\n3. Use Provider Management to explore available providers\n4. Try Key Management operations to create and manage keys\n5. Perform Cryptographic Operations with your keys\n\n## Environment Variables\n- `base_url`: KeyGrid HSM server URL (e.g., http://localhost:8080)\n- `api_key`: Your API key for authentication (optional)\n- `jwt_token`: JWT token for authentication (optional)\n- `provider`: Provider to use for operations (e.g., mock-hsm, azure-keyvault)\n- `key_id`: Key ID from key creation response",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "version": {
+      "major": 1,
+      "minor": 0,
+      "patch": 0
+    }
+  },
+  "auth": {
+    "type": "apikey",
+    "apikey": [
+      {
+        "key": "key",
+        "value": "X-API-Key",
+        "type": "string"
+      },
+      {
+        "key": "value",
+        "value": "{{api_key}}",
+        "type": "string"
+      }
+    ]
+  },
+  "item": [
+    {
+      "name": "Health & Status",
+      "description": "Health checks and system status endpoints",
+      "item": [
+        {
+          "name": "Health Check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/health",
+              "host": ["{{base_url}}"],
+              "path": ["health"]
+            },
+            "description": "Basic health check endpoint to verify the service is running"
+          },
+          "response": [
+            {
+              "name": "Healthy Response",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/health",
+                  "host": ["{{base_url}}"],
+                  "path": ["health"]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n    \"status\": \"healthy\",\n    \"timestamp\": \"2024-12-09T18:35:45Z\",\n    \"version\": \"1.0.0\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "Readiness Check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/ready",
+              "host": ["{{base_url}}"],
+              "path": ["ready"]
+            },
+            "description": "Readiness check including provider health status"
+          },
+          "response": [
+            {
+              "name": "Ready Response",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/ready",
+                  "host": ["{{base_url}}"],
+                  "path": ["ready"]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n    \"status\": \"ready\",\n    \"timestamp\": \"2024-12-09T18:35:45Z\",\n    \"providers\": 3\n}"
+            }
+          ]
+        },
+        {
+          "name": "Prometheus Metrics",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/metrics",
+              "host": ["{{base_url}}"],
+              "path": ["metrics"]
+            },
+            "description": "Prometheus-formatted metrics for monitoring"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Provider Management",
+      "description": "HSM provider management operations",
+      "item": [
+        {
+          "name": "List Providers",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/providers",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "providers"]
+            },
+            "description": "Get a list of all registered HSM providers"
+          },
+          "response": [
+            {
+              "name": "Providers List",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/providers",
+                  "host": ["{{base_url}}"],
+                  "path": ["api", "v1", "providers"]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n    \"providers\": [\"azure-keyvault\", \"custom-storage\", \"mock-hsm\"],\n    \"count\": 3\n}"
+            }
+          ]
+        },
+        {
+          "name": "Get Provider Info",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/providers/{{provider}}/info",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "providers", "{{provider}}", "info"]
+            },
+            "description": "Get detailed information about a specific provider"
+          },
+          "response": [
+            {
+              "name": "Provider Info",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/providers/mock-hsm/info",
+                  "host": ["{{base_url}}"],
+                  "path": ["api", "v1", "providers", "mock-hsm", "info"]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n    \"provider\": \"mock-hsm\",\n    \"status\": \"active\",\n    \"version\": \"1.0.0\",\n    \"capabilities\": [\"key_generation\", \"signing\", \"encryption\", \"decryption\"]\n}"
+            }
+          ]
+        },
+        {
+          "name": "Check Provider Health",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/providers/{{provider}}/health",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "providers", "{{provider}}", "health"]
+            },
+            "description": "Check the health status of a specific provider"
+          },
+          "response": [
+            {
+              "name": "Provider Health",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/providers/mock-hsm/health",
+                  "host": ["{{base_url}}"],
+                  "path": ["api", "v1", "providers", "mock-hsm", "health"]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n    \"provider\": \"mock-hsm\",\n    \"status\": \"healthy\",\n    \"last_check\": \"2024-12-09T18:35:45Z\",\n    \"response_time\": \"1ms\"\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Key Management",
+      "description": "Key lifecycle management operations",
+      "item": [
+        {
+          "name": "Generate RSA Key",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"provider\": \"{{provider}}\",\n    \"name\": \"rsa-test-key-{{$timestamp}}\",\n    \"key_spec\": {\n        \"key_type\": \"RSA\",\n        \"key_size\": 2048,\n        \"key_usage\": [\"sign\", \"verify\", \"encrypt\", \"decrypt\"]\n    }\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/keys",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "keys"]
+            },
+            "description": "Generate a new RSA key for cryptographic operations"
+          },
+          "response": [
+            {
+              "name": "Key Generated",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n    \"provider\": \"mock-hsm\",\n    \"name\": \"rsa-test-key\",\n    \"key_spec\": {\n        \"key_type\": \"RSA\",\n        \"key_size\": 2048,\n        \"key_usage\": [\"sign\", \"verify\", \"encrypt\", \"decrypt\"]\n    }\n}"
+                },
+                "url": {
+                  "raw": "{{base_url}}/api/v1/keys",
+                  "host": ["{{base_url}}"],
+                  "path": ["api", "v1", "keys"]
+                }
+              },
+              "status": "Created",
+              "code": 201,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n    \"id\": \"123e4567-e89b-12d3-a456-426614174000\",\n    \"name\": \"rsa-test-key\",\n    \"provider\": \"mock-hsm\",\n    \"key_spec\": {\n        \"key_type\": \"RSA\",\n        \"key_size\": 2048,\n        \"key_usage\": [\"sign\", \"verify\", \"encrypt\", \"decrypt\"]\n    },\n    \"status\": \"active\",\n    \"created_at\": \"2024-12-09T18:35:45Z\"\n}"
+            }
+          ],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    const response = pm.response.json();",
+                  "    pm.environment.set('key_id', response.id);",
+                  "    pm.test('Key created successfully', () => {",
+                  "        pm.expect(response.id).to.exist;",
+                  "        pm.expect(response.status).to.equal('active');",
+                  "    });",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Generate ECDSA Key",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"provider\": \"{{provider}}\",\n    \"name\": \"ecdsa-test-key-{{$timestamp}}\",\n    \"key_spec\": {\n        \"key_type\": \"ECDSA\",\n        \"curve\": \"P-256\",\n        \"key_usage\": [\"sign\", \"verify\"]\n    }\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/keys",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "keys"]
+            },
+            "description": "Generate a new ECDSA key for digital signatures"
+          }
+        },
+        {
+          "name": "Generate Azure KeyVault Key",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"provider\": \"azure-keyvault\",\n    \"name\": \"azure-rsa-key-{{$timestamp}}\",\n    \"key_spec\": {\n        \"key_type\": \"RSA\",\n        \"key_size\": 2048,\n        \"key_usage\": [\"sign\", \"verify\", \"encrypt\", \"decrypt\"]\n    },\n    \"config\": {\n        \"vault_url\": \"https://your-keyvault.vault.azure.net/\"\n    }\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/keys",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "keys"]
+            },
+            "description": "Generate a new key in Azure KeyVault"
+          }
+        },
+        {
+          "name": "List Keys",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/keys?provider={{provider}}&limit=10",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "keys"],
+              "query": [
+                {
+                  "key": "provider",
+                  "value": "{{provider}}"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                }
+              ]
+            },
+            "description": "List keys with optional filtering"
+          }
+        },
+        {
+          "name": "Get Key Information",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/keys/{{key_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "keys", "{{key_id}}"]
+            },
+            "description": "Get detailed information about a specific key"
+          }
+        },
+        {
+          "name": "Activate Key",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/keys/{{key_id}}/activate",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "keys", "{{key_id}}", "activate"]
+            },
+            "description": "Activate a key for cryptographic operations"
+          }
+        },
+        {
+          "name": "Deactivate Key",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/keys/{{key_id}}/deactivate",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "keys", "{{key_id}}", "deactivate"]
+            },
+            "description": "Deactivate a key to prevent its use"
+          }
+        },
+        {
+          "name": "Delete Key",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/keys/{{key_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "keys", "{{key_id}}"]
+            },
+            "description": "Permanently delete a key from the HSM"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Cryptographic Operations",
+      "description": "Cryptographic operations using managed keys",
+      "item": [
+        {
+          "name": "Sign Data",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"data\": \"SGVsbG8sIFdvcmxkIQ==\",\n    \"algorithm\": \"RS256\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/keys/{{key_id}}/sign",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "keys", "{{key_id}}", "sign"]
+            },
+            "description": "Sign data using a managed key. Data should be base64 encoded."
+          },
+          "response": [
+            {
+              "name": "Signature Created",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n    \"data\": \"SGVsbG8sIFdvcmxkIQ==\",\n    \"algorithm\": \"RS256\"\n}"
+                },
+                "url": {
+                  "raw": "{{base_url}}/api/v1/keys/{{key_id}}/sign",
+                  "host": ["{{base_url}}"],
+                  "path": ["api", "v1", "keys", "{{key_id}}", "sign"]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n    \"key_id\": \"123e4567-e89b-12d3-a456-426614174000\",\n    \"signature\": \"ZXhhbXBsZSBzaWduYXR1cmUgZGF0YQ==\",\n    \"algorithm\": \"RS256\"\n}"
+            }
+          ],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const response = pm.response.json();",
+                  "    pm.environment.set('signature', response.signature);",
+                  "    pm.test('Data signed successfully', () => {",
+                  "        pm.expect(response.signature).to.exist;",
+                  "        pm.expect(response.algorithm).to.equal('RS256');",
+                  "    });",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Verify Signature",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"data\": \"SGVsbG8sIFdvcmxkIQ==\",\n    \"signature\": \"{{signature}}\",\n    \"algorithm\": \"RS256\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/keys/{{key_id}}/verify",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "keys", "{{key_id}}", "verify"]
+            },
+            "description": "Verify a digital signature against the original data"
+          },
+          "response": [
+            {
+              "name": "Signature Valid",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n    \"data\": \"SGVsbG8sIFdvcmxkIQ==\",\n    \"signature\": \"ZXhhbXBsZSBzaWduYXR1cmUgZGF0YQ==\",\n    \"algorithm\": \"RS256\"\n}"
+                },
+                "url": {
+                  "raw": "{{base_url}}/api/v1/keys/{{key_id}}/verify",
+                  "host": ["{{base_url}}"],
+                  "path": ["api", "v1", "keys", "{{key_id}}", "verify"]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n    \"key_id\": \"123e4567-e89b-12d3-a456-426614174000\",\n    \"valid\": true,\n    \"algorithm\": \"RS256\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "Encrypt Data",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"data\": \"U2VjcmV0IG1lc3NhZ2U=\",\n    \"algorithm\": \"RSA-OAEP\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/keys/{{key_id}}/encrypt",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "keys", "{{key_id}}", "encrypt"]
+            },
+            "description": "Encrypt data using a managed key. Data should be base64 encoded."
+          },
+          "response": [
+            {
+              "name": "Data Encrypted",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n    \"data\": \"U2VjcmV0IG1lc3NhZ2U=\",\n    \"algorithm\": \"RSA-OAEP\"\n}"
+                },
+                "url": {
+                  "raw": "{{base_url}}/api/v1/keys/{{key_id}}/encrypt",
+                  "host": ["{{base_url}}"],
+                  "path": ["api", "v1", "keys", "{{key_id}}", "encrypt"]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n    \"key_id\": \"123e4567-e89b-12d3-a456-426614174000\",\n    \"ciphertext\": \"ZXhhbXBsZSBlbmNyeXB0ZWQgZGF0YQ==\",\n    \"algorithm\": \"RSA-OAEP\"\n}"
+            }
+          ],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const response = pm.response.json();",
+                  "    pm.environment.set('ciphertext', response.ciphertext);",
+                  "    pm.test('Data encrypted successfully', () => {",
+                  "        pm.expect(response.ciphertext).to.exist;",
+                  "        pm.expect(response.algorithm).to.equal('RSA-OAEP');",
+                  "    });",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Decrypt Data",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"ciphertext\": \"{{ciphertext}}\",\n    \"algorithm\": \"RSA-OAEP\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/keys/{{key_id}}/decrypt",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "keys", "{{key_id}}", "decrypt"]
+            },
+            "description": "Decrypt data using a managed key"
+          },
+          "response": [
+            {
+              "name": "Data Decrypted",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n    \"ciphertext\": \"ZXhhbXBsZSBlbmNyeXB0ZWQgZGF0YQ==\",\n    \"algorithm\": \"RSA-OAEP\"\n}"
+                },
+                "url": {
+                  "raw": "{{base_url}}/api/v1/keys/{{key_id}}/decrypt",
+                  "host": ["{{base_url}}"],
+                  "path": ["api", "v1", "keys", "{{key_id}}", "decrypt"]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n    \"key_id\": \"123e4567-e89b-12d3-a456-426614174000\",\n    \"plaintext\": \"U2VjcmV0IG1lc3NhZ2U=\",\n    \"algorithm\": \"RSA-OAEP\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "Sign with ECDSA",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"data\": \"SGVsbG8sIFdvcmxkIQ==\",\n    \"algorithm\": \"ES256\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/keys/{{key_id}}/sign",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "keys", "{{key_id}}", "sign"]
+            },
+            "description": "Sign data using ECDSA algorithm (use with ECDSA keys)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Examples & Workflows",
+      "description": "Complete workflows demonstrating common use cases",
+      "item": [
+        {
+          "name": "Complete RSA Workflow",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"provider\": \"mock-hsm\",\n    \"name\": \"workflow-rsa-key-{{$timestamp}}\",\n    \"key_spec\": {\n        \"key_type\": \"RSA\",\n        \"key_size\": 2048,\n        \"key_usage\": [\"sign\", \"verify\", \"encrypt\", \"decrypt\"]\n    }\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/keys",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "keys"]
+            },
+            "description": "Step 1: Create RSA key for complete workflow demonstration"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "// Store the key ID for subsequent operations",
+                  "if (pm.response.code === 201) {",
+                  "    const response = pm.response.json();",
+                  "    pm.environment.set('workflow_key_id', response.id);",
+                  "    ",
+                  "    // Test that key was created successfully",
+                  "    pm.test('RSA key created for workflow', () => {",
+                  "        pm.expect(response.id).to.exist;",
+                  "        pm.expect(response.key_spec.key_type).to.equal('RSA');",
+                  "        pm.expect(response.status).to.equal('active');",
+                  "    });",
+                  "    ",
+                  "    // Set next request automatically",
+                  "    setTimeout(() => {",
+                  "        postman.setNextRequest('Sign Workflow Data');",
+                  "    }, 1000);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Sign Workflow Data",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"data\": \"V29ya2Zsb3cgVGVzdCBEYXRh\",\n    \"algorithm\": \"RS256\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/keys/{{workflow_key_id}}/sign",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "keys", "{{workflow_key_id}}", "sign"]
+            },
+            "description": "Step 2: Sign data with the created key"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const response = pm.response.json();",
+                  "    pm.environment.set('workflow_signature', response.signature);",
+                  "    ",
+                  "    pm.test('Data signed successfully', () => {",
+                  "        pm.expect(response.signature).to.exist;",
+                  "        pm.expect(response.algorithm).to.equal('RS256');",
+                  "    });",
+                  "    ",
+                  "    setTimeout(() => {",
+                  "        postman.setNextRequest('Verify Workflow Signature');",
+                  "    }, 500);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Verify Workflow Signature",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"data\": \"V29ya2Zsb3cgVGVzdCBEYXRh\",\n    \"signature\": \"{{workflow_signature}}\",\n    \"algorithm\": \"RS256\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/keys/{{workflow_key_id}}/verify",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "keys", "{{workflow_key_id}}", "verify"]
+            },
+            "description": "Step 3: Verify the signature"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const response = pm.response.json();",
+                  "    ",
+                  "    pm.test('Signature verified successfully', () => {",
+                  "        pm.expect(response.valid).to.be.true;",
+                  "    });",
+                  "    ",
+                  "    console.log('✅ Complete RSA workflow successful!');",
+                  "    console.log('Key ID:', pm.environment.get('workflow_key_id'));",
+                  "    console.log('Signature valid:', response.valid);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Set default values if not already set",
+          "if (!pm.environment.get('base_url')) {",
+          "    pm.environment.set('base_url', 'http://localhost:8080');",
+          "}",
+          "",
+          "if (!pm.environment.get('provider')) {",
+          "    pm.environment.set('provider', 'mock-hsm');",
+          "}"
+        ]
+      }
+    },
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Global test for all requests",
+          "pm.test('Response time is acceptable', () => {",
+          "    pm.expect(pm.response.responseTime).to.be.below(5000);",
+          "});",
+          "",
+          "// Log response for debugging",
+          "if (pm.response.code >= 400) {",
+          "    console.log('❌ Request failed:', pm.response.status);",
+          "    console.log('Response:', pm.response.text());",
+          "}"
+        ]
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:8080",
+      "description": "Base URL for KeyGrid HSM API"
+    },
+    {
+      "key": "provider",
+      "value": "mock-hsm",
+      "description": "Default HSM provider to use"
+    },
+    {
+      "key": "api_key",
+      "value": "",
+      "description": "API key for authentication (optional)"
+    },
+    {
+      "key": "jwt_token",
+      "value": "",
+      "description": "JWT token for authentication (optional)"
+    }
+  ]
+}

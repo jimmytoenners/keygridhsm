@@ -1,0 +1,853 @@
+openapi: 3.0.3
+info:
+  title: KeyGrid HSM API
+  description: |
+    KeyGrid HSM provides enterprise-grade Hardware Security Module (HSM) operations with pluggable storage backends.
+    
+    ## Features
+    - **Multi-Provider Support**: Azure KeyVault, Custom Storage, Mock HSM
+    - **Cryptographic Operations**: Key generation, signing, verification, encryption, decryption
+    - **Enterprise Security**: Audit logging, metrics, health monitoring
+    - **Cloud Native**: Kubernetes-ready with comprehensive observability
+    
+    ## Authentication
+    Authentication is configurable and supports:
+    - API Key authentication
+    - JWT tokens
+    - Mutual TLS
+    
+    Contact: developer@keygrid.com
+  version: "1.0.0"
+  contact:
+    name: KeyGrid HSM Support
+    email: support@keygrid.com
+    url: https://github.com/jimmytoenners/keygridhsm
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: http://localhost:8080
+    description: Development server
+  - url: https://keygrid-hsm.example.com
+    description: Production server
+
+tags:
+  - name: Health
+    description: Health and readiness checks
+  - name: Providers
+    description: HSM provider management
+  - name: Keys
+    description: Key lifecycle management
+  - name: Cryptography
+    description: Cryptographic operations
+  - name: Metrics
+    description: Observability and metrics
+
+paths:
+  # Health Endpoints
+  /health:
+    get:
+      tags: [Health]
+      summary: Health check
+      description: Returns the current health status of the HSM service
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+              example:
+                status: "healthy"
+                timestamp: "2024-12-09T18:35:45Z"
+                version: "1.0.0"
+
+  /ready:
+    get:
+      tags: [Health]
+      summary: Readiness check
+      description: Returns whether the service is ready to accept requests
+      responses:
+        '200':
+          description: Service is ready
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReadinessResponse'
+        '503':
+          description: Service is not ready
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReadinessResponse'
+
+  /metrics:
+    get:
+      tags: [Metrics]
+      summary: Prometheus metrics
+      description: Returns Prometheus-formatted metrics
+      responses:
+        '200':
+          description: Metrics data
+          content:
+            text/plain:
+              schema:
+                type: string
+
+  # Provider Management
+  /api/v1/providers:
+    get:
+      tags: [Providers]
+      summary: List all providers
+      description: Returns a list of all registered HSM providers
+      security:
+        - ApiKey: []
+        - BearerAuth: []
+      responses:
+        '200':
+          description: List of providers
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProvidersResponse'
+              example:
+                providers: ["azure-keyvault", "custom-storage", "mock-hsm"]
+                count: 3
+
+  /api/v1/providers/{provider}/info:
+    get:
+      tags: [Providers]
+      summary: Get provider information
+      description: Returns detailed information about a specific provider
+      security:
+        - ApiKey: []
+        - BearerAuth: []
+      parameters:
+        - name: provider
+          in: path
+          required: true
+          description: Provider name
+          schema:
+            type: string
+            enum: ["azure-keyvault", "custom-storage", "mock-hsm"]
+      responses:
+        '200':
+          description: Provider information
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProviderInfo'
+        '404':
+          description: Provider not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/providers/{provider}/health:
+    get:
+      tags: [Providers]
+      summary: Check provider health
+      description: Returns the health status of a specific provider
+      security:
+        - ApiKey: []
+        - BearerAuth: []
+      parameters:
+        - name: provider
+          in: path
+          required: true
+          description: Provider name
+          schema:
+            type: string
+            enum: ["azure-keyvault", "custom-storage", "mock-hsm"]
+      responses:
+        '200':
+          description: Provider health status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProviderHealth'
+
+  # Key Management
+  /api/v1/keys:
+    get:
+      tags: [Keys]
+      summary: List keys
+      description: Returns a list of all keys managed by the HSM
+      security:
+        - ApiKey: []
+        - BearerAuth: []
+      parameters:
+        - name: provider
+          in: query
+          description: Filter by provider
+          schema:
+            type: string
+        - name: status
+          in: query
+          description: Filter by key status
+          schema:
+            type: string
+            enum: ["active", "inactive", "deleted"]
+        - name: limit
+          in: query
+          description: Maximum number of keys to return
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 1000
+            default: 100
+        - name: offset
+          in: query
+          description: Number of keys to skip
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+      responses:
+        '200':
+          description: List of keys
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/KeyListResponse'
+
+    post:
+      tags: [Keys]
+      summary: Generate a new key
+      description: Generates a new cryptographic key using the specified provider
+      security:
+        - ApiKey: []
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GenerateKeyRequest'
+            examples:
+              rsa_key:
+                summary: Generate RSA key
+                value:
+                  provider: "azure-keyvault"
+                  name: "my-rsa-key"
+                  key_spec:
+                    key_type: "RSA"
+                    key_size: 2048
+                    key_usage: ["sign", "encrypt"]
+                  config:
+                    vault_url: "https://my-keyvault.vault.azure.net/"
+              ecdsa_key:
+                summary: Generate ECDSA key
+                value:
+                  provider: "mock-hsm"
+                  name: "my-ecdsa-key"
+                  key_spec:
+                    key_type: "ECDSA"
+                    curve: "P-256"
+                    key_usage: ["sign"]
+      responses:
+        '201':
+          description: Key generated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/KeyResponse'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Key generation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/keys/{keyId}:
+    get:
+      tags: [Keys]
+      summary: Get key information
+      description: Returns information about a specific key
+      security:
+        - ApiKey: []
+        - BearerAuth: []
+      parameters:
+        - name: keyId
+          in: path
+          required: true
+          description: Unique key identifier
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Key information
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/KeyResponse'
+        '404':
+          description: Key not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    delete:
+      tags: [Keys]
+      summary: Delete a key
+      description: Permanently deletes a key from the HSM
+      security:
+        - ApiKey: []
+        - BearerAuth: []
+      parameters:
+        - name: keyId
+          in: path
+          required: true
+          description: Unique key identifier
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Key deleted successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OperationResponse'
+        '404':
+          description: Key not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/keys/{keyId}/activate:
+    post:
+      tags: [Keys]
+      summary: Activate a key
+      description: Activates a key for cryptographic operations
+      security:
+        - ApiKey: []
+        - BearerAuth: []
+      parameters:
+        - name: keyId
+          in: path
+          required: true
+          description: Unique key identifier
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Key activated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OperationResponse'
+
+  /api/v1/keys/{keyId}/deactivate:
+    post:
+      tags: [Keys]
+      summary: Deactivate a key
+      description: Deactivates a key, preventing its use in cryptographic operations
+      security:
+        - ApiKey: []
+        - BearerAuth: []
+      parameters:
+        - name: keyId
+          in: path
+          required: true
+          description: Unique key identifier
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Key deactivated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OperationResponse'
+
+  # Cryptographic Operations
+  /api/v1/keys/{keyId}/sign:
+    post:
+      tags: [Cryptography]
+      summary: Sign data
+      description: Creates a digital signature for the provided data
+      security:
+        - ApiKey: []
+        - BearerAuth: []
+      parameters:
+        - name: keyId
+          in: path
+          required: true
+          description: Unique key identifier
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SignRequest'
+            example:
+              data: "SGVsbG8gV29ybGQ="
+              algorithm: "RS256"
+      responses:
+        '200':
+          description: Data signed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SignResponse'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/keys/{keyId}/verify:
+    post:
+      tags: [Cryptography]
+      summary: Verify signature
+      description: Verifies a digital signature against the original data
+      security:
+        - ApiKey: []
+        - BearerAuth: []
+      parameters:
+        - name: keyId
+          in: path
+          required: true
+          description: Unique key identifier
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VerifyRequest'
+            example:
+              data: "SGVsbG8gV29ybGQ="
+              signature: "c2lnbmF0dXJlX2RhdGFfaGVyZQ=="
+              algorithm: "RS256"
+      responses:
+        '200':
+          description: Signature verification result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VerifyResponse'
+
+  /api/v1/keys/{keyId}/encrypt:
+    post:
+      tags: [Cryptography]
+      summary: Encrypt data
+      description: Encrypts data using the specified key
+      security:
+        - ApiKey: []
+        - BearerAuth: []
+      parameters:
+        - name: keyId
+          in: path
+          required: true
+          description: Unique key identifier
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EncryptRequest'
+            example:
+              data: "U2VjcmV0IG1lc3NhZ2U="
+              algorithm: "RSA-OAEP"
+      responses:
+        '200':
+          description: Data encrypted successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EncryptResponse'
+
+  /api/v1/keys/{keyId}/decrypt:
+    post:
+      tags: [Cryptography]
+      summary: Decrypt data
+      description: Decrypts data using the specified key
+      security:
+        - ApiKey: []
+        - BearerAuth: []
+      parameters:
+        - name: keyId
+          in: path
+          required: true
+          description: Unique key identifier
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DecryptRequest'
+            example:
+              ciphertext: "ZW5jcnlwdGVkX2RhdGFfaGVyZQ=="
+              algorithm: "RSA-OAEP"
+      responses:
+        '200':
+          description: Data decrypted successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DecryptResponse'
+
+components:
+  securitySchemes:
+    ApiKey:
+      type: apiKey
+      in: header
+      name: X-API-Key
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    # Health Schemas
+    HealthResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: ["healthy", "unhealthy"]
+        timestamp:
+          type: string
+          format: date-time
+        version:
+          type: string
+      required: [status, timestamp, version]
+
+    ReadinessResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: ["ready", "not_ready"]
+        timestamp:
+          type: string
+          format: date-time
+        providers:
+          type: integer
+          description: Number of available providers
+      required: [status, timestamp, providers]
+
+    # Provider Schemas
+    ProvidersResponse:
+      type: object
+      properties:
+        providers:
+          type: array
+          items:
+            type: string
+        count:
+          type: integer
+      required: [providers, count]
+
+    ProviderInfo:
+      type: object
+      properties:
+        provider:
+          type: string
+        status:
+          type: string
+          enum: ["active", "inactive", "error"]
+        version:
+          type: string
+        capabilities:
+          type: array
+          items:
+            type: string
+        configuration:
+          type: object
+      required: [provider, status]
+
+    ProviderHealth:
+      type: object
+      properties:
+        provider:
+          type: string
+        status:
+          type: string
+          enum: ["healthy", "unhealthy"]
+        last_check:
+          type: string
+          format: date-time
+        response_time:
+          type: string
+          description: Response time in milliseconds
+        error:
+          type: string
+          nullable: true
+      required: [provider, status, last_check]
+
+    # Key Management Schemas
+    KeySpec:
+      type: object
+      properties:
+        key_type:
+          type: string
+          enum: ["RSA", "ECDSA", "AES"]
+        key_size:
+          type: integer
+          description: Key size in bits
+        curve:
+          type: string
+          description: Elliptic curve name (for ECDSA keys)
+          enum: ["P-256", "P-384", "P-521"]
+        key_usage:
+          type: array
+          items:
+            type: string
+            enum: ["sign", "verify", "encrypt", "decrypt", "wrap", "unwrap"]
+      required: [key_type]
+
+    GenerateKeyRequest:
+      type: object
+      properties:
+        provider:
+          type: string
+          description: HSM provider to use
+        name:
+          type: string
+          description: Human-readable key name
+        key_spec:
+          $ref: '#/components/schemas/KeySpec'
+        config:
+          type: object
+          description: Provider-specific configuration
+      required: [provider, name, key_spec]
+
+    KeyResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique key identifier
+        name:
+          type: string
+          description: Human-readable key name
+        provider:
+          type: string
+          description: HSM provider managing this key
+        key_spec:
+          $ref: '#/components/schemas/KeySpec'
+        status:
+          type: string
+          enum: ["active", "inactive", "deleted"]
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        public_key:
+          type: string
+          description: Public key in PEM format (if applicable)
+      required: [id, name, provider, key_spec, status, created_at]
+
+    KeyListResponse:
+      type: object
+      properties:
+        keys:
+          type: array
+          items:
+            $ref: '#/components/schemas/KeyResponse'
+        count:
+          type: integer
+          description: Number of keys returned
+        total:
+          type: integer
+          description: Total number of keys available
+        limit:
+          type: integer
+          description: Maximum keys per page
+        offset:
+          type: integer
+          description: Number of keys skipped
+      required: [keys, count, total]
+
+    # Cryptographic Operation Schemas
+    SignRequest:
+      type: object
+      properties:
+        data:
+          type: string
+          format: byte
+          description: Base64-encoded data to sign
+        algorithm:
+          type: string
+          enum: ["RS256", "RS384", "RS512", "ES256", "ES384", "ES512", "PS256", "PS384", "PS512"]
+          description: Signing algorithm
+      required: [data, algorithm]
+
+    SignResponse:
+      type: object
+      properties:
+        key_id:
+          type: string
+          format: uuid
+        signature:
+          type: string
+          format: byte
+          description: Base64-encoded signature
+        algorithm:
+          type: string
+          description: Algorithm used for signing
+      required: [key_id, signature, algorithm]
+
+    VerifyRequest:
+      type: object
+      properties:
+        data:
+          type: string
+          format: byte
+          description: Base64-encoded original data
+        signature:
+          type: string
+          format: byte
+          description: Base64-encoded signature to verify
+        algorithm:
+          type: string
+          enum: ["RS256", "RS384", "RS512", "ES256", "ES384", "ES512", "PS256", "PS384", "PS512"]
+          description: Signing algorithm
+      required: [data, signature, algorithm]
+
+    VerifyResponse:
+      type: object
+      properties:
+        key_id:
+          type: string
+          format: uuid
+        valid:
+          type: boolean
+          description: Whether the signature is valid
+        algorithm:
+          type: string
+          description: Algorithm used for verification
+      required: [key_id, valid, algorithm]
+
+    EncryptRequest:
+      type: object
+      properties:
+        data:
+          type: string
+          format: byte
+          description: Base64-encoded data to encrypt
+        algorithm:
+          type: string
+          enum: ["RSA-OAEP", "RSA-PKCS1", "AES-GCM"]
+          description: Encryption algorithm
+      required: [data, algorithm]
+
+    EncryptResponse:
+      type: object
+      properties:
+        key_id:
+          type: string
+          format: uuid
+        ciphertext:
+          type: string
+          format: byte
+          description: Base64-encoded encrypted data
+        algorithm:
+          type: string
+          description: Algorithm used for encryption
+        iv:
+          type: string
+          format: byte
+          description: Base64-encoded initialization vector (if applicable)
+          nullable: true
+      required: [key_id, ciphertext, algorithm]
+
+    DecryptRequest:
+      type: object
+      properties:
+        ciphertext:
+          type: string
+          format: byte
+          description: Base64-encoded data to decrypt
+        algorithm:
+          type: string
+          enum: ["RSA-OAEP", "RSA-PKCS1", "AES-GCM"]
+          description: Decryption algorithm
+        iv:
+          type: string
+          format: byte
+          description: Base64-encoded initialization vector (if applicable)
+          nullable: true
+      required: [ciphertext, algorithm]
+
+    DecryptResponse:
+      type: object
+      properties:
+        key_id:
+          type: string
+          format: uuid
+        plaintext:
+          type: string
+          format: byte
+          description: Base64-encoded decrypted data
+        algorithm:
+          type: string
+          description: Algorithm used for decryption
+      required: [key_id, plaintext, algorithm]
+
+    # Common Schemas
+    OperationResponse:
+      type: object
+      properties:
+        key_id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          description: Operation result
+        timestamp:
+          type: string
+          format: date-time
+        message:
+          type: string
+          description: Human-readable result message
+      required: [key_id, status, timestamp]
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Error message
+        status:
+          type: integer
+          description: HTTP status code
+        timestamp:
+          type: string
+          format: date-time
+        details:
+          type: string
+          description: Additional error details
+          nullable: true
+      required: [error, status, timestamp]

@@ -227,3 +227,23 @@ status: ## Show project status
 	@echo "  • Docker container"
 	@echo "  • Kubernetes deployment"
 	@echo "  • Helm chart"
+
+# Security
+.PHONY: security security-scan security-audit security-clean
+security: security-scan ## Run security checks
+
+security-scan: ## Run basic security scans
+	@echo "🔒 Running security scans..."
+	@command -v gosec >/dev/null || go install github.com/securecodewarrior/gosec/v2/cmd/gosec@latest
+	@gosec -quiet ./...
+	@echo "✅ Security scan completed"
+
+security-audit: ## Run comprehensive security audit
+	@echo "🛡️  Running comprehensive security audit..."
+	@chmod +x scripts/security-audit.sh
+	@./scripts/security-audit.sh
+	@echo "✅ Security audit completed"
+
+security-clean: ## Clean security reports
+	@echo "🧹 Cleaning security reports..."
+	@rm -rf security-reports
