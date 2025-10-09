@@ -468,6 +468,11 @@ func (m *HSMManager) CheckHealth(ctx context.Context, providerName string, provi
 	return health, err
 }
 
+// ListProviders returns a list of registered provider names
+func (m *HSMManager) ListProviders() []string {
+	return m.registry.ListProviders()
+}
+
 // Close closes all HSM clients
 func (m *HSMManager) Close() error {
 	var lastErr error

@@ -14,7 +14,6 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 
 	"github.com/jimmy/keygridhsm/internal/config"
 	"github.com/jimmy/keygridhsm/internal/core"
@@ -81,7 +80,7 @@ func runServer(cmd *cobra.Command, args []string) {
 	}
 
 	// Set log level from config
-	if level, err := logrus.ParseLevel(cfg.Server.LogLevel); err == nil {
+	if level, err := logrus.ParseLevel(cfg.Logging.Level); err == nil {
 		logger.SetLevel(level)
 	}
 
