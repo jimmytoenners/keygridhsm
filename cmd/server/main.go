@@ -3,7 +3,10 @@ package main
 
 import (
 	"context"
+	"crypto/x509"
+	"encoding/base64"
 	"encoding/json"
+	"encoding/pem"
 	"fmt"
 	"net/http"
 	"os"
@@ -265,6 +268,7 @@ func (s *HSMServer) setupRoutes() *mux.Router {
 	api.HandleFunc("/keys", s.handleGenerateKey).Methods("POST")
 	api.HandleFunc("/keys/{keyId}", s.handleGetKey).Methods("GET")
 	api.HandleFunc("/keys/{keyId}", s.handleDeleteKey).Methods("DELETE")
+	api.HandleFunc("/keys/{keyId}/public", s.handleGetPublicKey).Methods("GET")
 	api.HandleFunc("/keys/{keyId}/activate", s.handleActivateKey).Methods("POST")
 	api.HandleFunc("/keys/{keyId}/deactivate", s.handleDeactivateKey).Methods("POST")
 
@@ -381,20 +385,124 @@ func (s *HSMServer) handleGenerateKey(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// TODO: Implement key generation via HSM manager
-	response := map[string]interface{}{
-		"message": "Key generation endpoint - implementation needed",
-		"request": req,
+	// Validate required fields
+	if req.Name == "" {
+		s.sendErrorResponse(w, http.StatusBadRequest, "Key name is required", nil)
+		return
 	}
-	s.sendJSONResponse(w, http.StatusOK, response)
+
+	// Set default provider if not specified
+	providerName := req.Provider
+	if providerName == "" {
+		providerName = "mock-hsm"
+	}
+
+	// Set provider configuration - can be extended for provider-specific config
+	providerConfig := map[string]interface{}{
+		"persistent_storage": true,
+		"simulate_errors":    false,
+		"max_keys":           1000,
+		"key_prefix":         "api",
+	}
+
+	// Override with provided config if available
+	if req.Config != nil {
+		if configMap, ok := req.Config.(map[string]interface{}); ok {
+			for k, v := range configMap {
+				providerConfig[k] = v
+			}
+		}
+	}
+
+	// Call HSM Manager to generate key
+	ctx := r.Context()
+	keyHandle, err := s.manager.GenerateKey(ctx, providerName, providerConfig, req.KeySpec, req.Name)
+	if err != nil {
+		// Check for specific error types
+		if models.HasErrorCode(err, models.ErrCodeKeyAlreadyExists) {
+			s.sendErrorResponse(w, http.StatusConflict, "Key with this name already exists", err)
+			return
+		}
+		if models.HasErrorCode(err, models.ErrCodeInvalidKeySpec) {
+			s.sendErrorResponse(w, http.StatusBadRequest, "Invalid key specification", err)
+			return
+		}
+		s.sendErrorResponse(w, http.StatusInternalServerError, "Key generation failed", err)
+		return
+	}
+
+	// Format response according to wishlist specification
+	response := map[string]interface{}{
+		"id":              keyHandle.ID,
+		"name":            keyHandle.Name,
+		"key_type":        string(keyHandle.KeyType),
+		"key_size":        keyHandle.KeySize,
+		"algorithm":       keyHandle.Algorithm,
+		"usage":           keyHandle.Usage,
+		"state":           string(keyHandle.State),
+		"created_at":      keyHandle.CreatedAt.Format(time.RFC3339),
+		"provider_id":     providerName,
+		"provider_key_id": keyHandle.ProviderKeyID,
+	}
+
+	s.logger.WithFields(logrus.Fields{
+		"key_id":   keyHandle.ID,
+		"key_name": keyHandle.Name,
+		"provider": providerName,
+		"key_type": keyHandle.KeyType,
+	}).Info("Key generated successfully")
+
+	s.sendJSONResponse(w, http.StatusCreated, response)
 }
 
 func (s *HSMServer) handleListKeys(w http.ResponseWriter, r *http.Request) {
-	// TODO: Implement key listing
-	response := map[string]interface{}{
-		"keys":  []string{},
-		"count": 0,
+	// Get provider from query parameter or use default
+	providerName := r.URL.Query().Get("provider")
+	if providerName == "" {
+		providerName = "mock-hsm"
 	}
+
+	// Set provider configuration
+	providerConfig := map[string]interface{}{
+		"persistent_storage": true,
+		"simulate_errors":    false,
+		"max_keys":           1000,
+		"key_prefix":         "api",
+	}
+
+	// Call HSM Manager to list keys
+	ctx := r.Context()
+	keyHandles, err := s.manager.ListKeys(ctx, providerName, providerConfig)
+	if err != nil {
+		s.sendErrorResponse(w, http.StatusInternalServerError, "Failed to list keys", err)
+		return
+	}
+
+	// Convert KeyHandle array to JSON format
+	keys := make([]map[string]interface{}, 0, len(keyHandles))
+	for _, keyHandle := range keyHandles {
+		keyInfo := map[string]interface{}{
+			"id":         keyHandle.ID,
+			"name":       keyHandle.Name,
+			"key_type":   string(keyHandle.KeyType),
+			"key_size":   keyHandle.KeySize,
+			"state":      string(keyHandle.State),
+			"created_at": keyHandle.CreatedAt.Format(time.RFC3339),
+		}
+		keys = append(keys, keyInfo)
+	}
+
+	// Format response according to wishlist specification
+	response := map[string]interface{}{
+		"keys":  keys,
+		"count": len(keys),
+	}
+
+	s.logger.WithFields(logrus.Fields{
+		"provider":  providerName,
+		"key_count": len(keys),
+	}).Info("Keys listed successfully")
+
 	s.sendJSONResponse(w, http.StatusOK, response)
 }
 
@@ -410,15 +518,122 @@ func (s *HSMServer) handleGetKey(w http.ResponseWriter, r *http.Request) {
 	s.sendJSONResponse(w, http.StatusOK, response)
 }
 
+func (s *HSMServer) handleGetPublicKey(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	keyID := vars["keyId"]
+
+	// Get provider from query parameter or use default
+	providerName := r.URL.Query().Get("provider")
+	if providerName == "" {
+		providerName = "mock-hsm"
+	}
+
+	// Set provider configuration
+	providerConfig := map[string]interface{}{
+		"persistent_storage": true,
+		"simulate_errors":    false,
+		"max_keys":           1000,
+		"key_prefix":         "api",
+	}
+
+	// Call HSM Manager to get public key
+	ctx := r.Context()
+	publicKey, err := s.manager.GetPublicKey(ctx, providerName, providerConfig, keyID)
+	if err != nil {
+		if models.HasErrorCode(err, models.ErrCodeKeyNotFound) {
+			s.sendErrorResponse(w, http.StatusNotFound, "Key not found", err)
+			return
+		}
+		s.sendErrorResponse(w, http.StatusInternalServerError, "Failed to retrieve public key", err)
+		return
+	}
+
+	// Convert public key to PEM format
+	pubKeyBytes, err := x509.MarshalPKIXPublicKey(publicKey)
+	if err != nil {
+		s.sendErrorResponse(w, http.StatusInternalServerError, "Failed to marshal public key", err)
+		return
+	}
+
+	pemBlock := &pem.Block{
+		Type:  "PUBLIC KEY",
+		Bytes: pubKeyBytes,
+	}
+	pubKeyPEM := pem.EncodeToMemory(pemBlock)
+
+	// Get key metadata by retrieving the key handle
+	keyHandle, err := s.manager.GetKey(ctx, providerName, providerConfig, keyID)
+	if err != nil {
+		// If we can't get metadata, still return the public key with basic info
+		response := map[string]interface{}{
+			"public_key": string(pubKeyPEM),
+			"key_type":   "unknown",
+			"algorithm":  "unknown",
+			"key_size":   0,
+		}
+		s.sendJSONResponse(w, http.StatusOK, response)
+		return
+	}
+
+	// Format response with key metadata
+	response := map[string]interface{}{
+		"public_key": string(pubKeyPEM),
+		"key_type":   string(keyHandle.KeyType),
+		"algorithm":  keyHandle.Algorithm,
+		"key_size":   keyHandle.KeySize,
+	}
+
+	s.logger.WithFields(logrus.Fields{
+		"key_id":   keyID,
+		"provider": providerName,
+		"key_type": keyHandle.KeyType,
+	}).Info("Public key retrieved successfully")
+
+	s.sendJSONResponse(w, http.StatusOK, response)
+}
+
 func (s *HSMServer) handleDeleteKey(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	keyID := vars["keyId"]
 
-	// TODO: Implement key deletion
-	response := map[string]interface{}{
-		"key_id": keyID,
-		"status": "deleted",
+	// Get provider from query parameter or use default
+	providerName := r.URL.Query().Get("provider")
+	if providerName == "" {
+		providerName = "mock-hsm"
 	}
+
+	// Set provider configuration
+	providerConfig := map[string]interface{}{
+		"persistent_storage": true,
+		"simulate_errors":    false,
+		"max_keys":           1000,
+		"key_prefix":         "api",
+	}
+
+	// Call HSM Manager to delete key
+	ctx := r.Context()
+	err := s.manager.DeleteKey(ctx, providerName, providerConfig, keyID)
+	if err != nil {
+		if models.HasErrorCode(err, models.ErrCodeKeyNotFound) {
+			s.sendErrorResponse(w, http.StatusNotFound, "Key not found", err)
+			return
+		}
+		s.sendErrorResponse(w, http.StatusInternalServerError, "Key deletion failed", err)
+		return
+	}
+
+	// Format response according to wishlist specification
+	response := map[string]interface{}{
+		"key_id":     keyID,
+		"status":     "deleted",
+		"deleted_at": time.Now().UTC().Format(time.RFC3339),
+	}
+
+	s.logger.WithFields(logrus.Fields{
+		"key_id":   keyID,
+		"provider": providerName,
+	}).Info("Key deleted successfully")
+
 	s.sendJSONResponse(w, http.StatusOK, response)
 }
 
@@ -445,7 +660,104 @@ func (s *HSMServer) handleDeactivateKey(w http.ResponseWriter, r *http.Request) 
 }
 
 func (s *HSMServer) handleSign(w http.ResponseWriter, r *http.Request) {
-	s.handleCryptoOperation(w, r, "sign", "signature", "mock_signature_data")
+	vars := mux.Vars(r)
+	keyID := vars["keyId"]
+
+	var req struct {
+		Data      string                 `json:"data"`      // Base64 encoded data to sign
+		Algorithm string                 `json:"algorithm"` // Signing algorithm
+		Metadata  map[string]interface{} `json:"metadata"`  // Additional metadata
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		s.sendErrorResponse(w, http.StatusBadRequest, "Invalid request body", err)
+		return
+	}
+
+	// Validate required fields
+	if req.Data == "" {
+		s.sendErrorResponse(w, http.StatusBadRequest, "Data field is required", nil)
+		return
+	}
+	if req.Algorithm == "" {
+		s.sendErrorResponse(w, http.StatusBadRequest, "Algorithm field is required", nil)
+		return
+	}
+
+	// Decode base64 data
+	dataToSign, err := base64.StdEncoding.DecodeString(req.Data)
+	if err != nil {
+		s.sendErrorResponse(w, http.StatusBadRequest, "Invalid base64 data", err)
+		return
+	}
+
+	// Get provider from query parameter or use default
+	providerName := r.URL.Query().Get("provider")
+	if providerName == "" {
+		providerName = "mock-hsm"
+	}
+
+	// Set provider configuration
+	providerConfig := map[string]interface{}{
+		"persistent_storage": true,
+		"simulate_errors":    false,
+		"max_keys":           1000,
+		"key_prefix":         "api",
+	}
+
+	// Convert metadata map[string]interface{} to map[string]string
+	metadata := make(map[string]string)
+	if req.Metadata != nil {
+		for k, v := range req.Metadata {
+			if strVal, ok := v.(string); ok {
+				metadata[k] = strVal
+			}
+		}
+	}
+
+	// Create signing request
+	signingRequest := models.SigningRequest{
+		KeyHandle: keyID,
+		Data:      dataToSign,
+		Algorithm: req.Algorithm,
+		Metadata:  metadata,
+	}
+
+	// Call HSM Manager to sign data
+	ctx := r.Context()
+	signingResponse, err := s.manager.Sign(ctx, providerName, providerConfig, signingRequest)
+	if err != nil {
+		if models.HasErrorCode(err, models.ErrCodeKeyNotFound) {
+			s.sendErrorResponse(w, http.StatusNotFound, "Key not found", err)
+			return
+		}
+		if models.HasErrorCode(err, models.ErrCodeInvalidAlgorithm) {
+			s.sendErrorResponse(w, http.StatusBadRequest, "Unsupported algorithm", err)
+			return
+		}
+		s.sendErrorResponse(w, http.StatusInternalServerError, "Signing operation failed", err)
+		return
+	}
+
+	// Encode signature to base64 for JSON response
+	signatureBase64 := base64.StdEncoding.EncodeToString(signingResponse.Signature)
+
+	// Format response according to wishlist specification
+	response := map[string]interface{}{
+		"signature": signatureBase64,
+		"algorithm": signingResponse.Algorithm,
+		"key_id":    signingResponse.KeyID,
+	}
+
+	s.logger.WithFields(logrus.Fields{
+		"key_id":         keyID,
+		"provider":       providerName,
+		"algorithm":      req.Algorithm,
+		"data_size":      len(dataToSign),
+		"signature_size": len(signingResponse.Signature),
+	}).Info("Data signed successfully")
+
+	s.sendJSONResponse(w, http.StatusOK, response)
 }
 
 func (s *HSMServer) handleVerify(w http.ResponseWriter, r *http.Request) {

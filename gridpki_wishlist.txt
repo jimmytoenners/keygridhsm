@@ -1,0 +1,285 @@
+KeyGrid HSM HTTP API - Implementation Wishlist
+=====================================================
+
+PRIORITY: HIGH - These endpoints are required for KeyGrid PKI HSM integration tests to pass
+
+CONTEXT:
+- The HSM core functionality is working (./test-hsm passes)
+- HTTP server structure is in place in cmd/server/main.go
+- HSMManager in internal/core/manager.go has the business logic
+- Missing: Actual HTTP endpoint implementations that call the HSM manager
+
+REQUIRED IMPLEMENTATIONS:
+
+1. KEY GENERATION ENDPOINT - /api/v1/keys (POST)
+==================================================
+
+CURRENT STATUS: Returns placeholder message
+LOCATION: cmd/server/main.go:371 - handleGenerateKey()
+
+REQUIRED:
+Replace the TODO placeholder with actual implementation
+
+INPUT FORMAT (JSON):
+{
+  "provider": "mock-hsm",
+  "key_spec": {
+    "key_type": "RSA",
+    "key_size": 2048,
+    "algorithm": "RS256", 
+    "usage": ["sign", "verify"]
+  },
+  "name": "test-key-name"
+}
+
+EXPECTED OUTPUT (JSON):
+{
+  "id": "generated-key-uuid",
+  "name": "test-key-name", 
+  "key_type": "RSA",
+  "key_size": 2048,
+  "algorithm": "RS256",
+  "usage": ["sign", "verify"],
+  "state": "active",
+  "created_at": "2025-10-10T05:45:33Z",
+  "provider_id": "mock-hsm",
+  "provider_key_id": "internal-hsm-key-id"
+}
+
+IMPLEMENTATION STEPS:
+1. Parse JSON request body into proper structs
+2. Call s.manager.GenerateKey(ctx, req.Provider, providerConfig, keySpec, req.Name)
+3. Convert returned models.KeyHandle to JSON response format
+4. Handle errors with proper HTTP status codes (400 for bad request, 500 for HSM errors)
+
+ERROR HANDLING:
+- 400 Bad Request: Invalid JSON, missing required fields
+- 500 Internal Server Error: HSM provider errors, key generation failures
+- 409 Conflict: Key with same name already exists
+
+
+2. PUBLIC KEY RETRIEVAL - /api/v1/keys/{keyId}/public (GET)
+===========================================================
+
+CURRENT STATUS: Missing endpoint entirely
+LOCATION: Need to add to cmd/server/main.go setupRoutes()
+
+REQUIRED:
+Add new route and handler
+
+URL: /api/v1/keys/{keyId}/public
+METHOD: GET
+NO REQUEST BODY
+
+EXPECTED OUTPUT (JSON):
+{
+  "public_key": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG...\n-----END PUBLIC KEY-----",
+  "key_type": "RSA",
+  "algorithm": "RS256",
+  "key_size": 2048
+}
+
+IMPLEMENTATION STEPS:
+1. Extract keyId from URL path
+2. Call s.manager.GetPublicKey(ctx, providerName, providerConfig, keyId)
+3. Convert crypto.PublicKey to PEM format using x509.MarshalPKIXPublicKey()
+4. Return JSON with PEM string and key metadata
+
+ERROR HANDLING:
+- 404 Not Found: Key doesn't exist
+- 500 Internal Server Error: HSM provider errors
+
+
+3. SIGNING ENDPOINT - /api/v1/keys/{keyId}/sign (POST)
+======================================================
+
+CURRENT STATUS: Returns placeholder mock data
+LOCATION: cmd/server/main.go:447 - handleSign()
+
+INPUT FORMAT (JSON):
+{
+  "data": "SGVsbG8gS2V5R3JpZCBIU00h",  # Base64 encoded data to sign
+  "algorithm": "RS256",
+  "metadata": {}
+}
+
+EXPECTED OUTPUT (JSON):
+{
+  "signature": "base64-encoded-signature-bytes",
+  "algorithm": "RS256", 
+  "key_id": "key-uuid"
+}
+
+IMPLEMENTATION STEPS:
+1. Parse JSON request, decode base64 data field
+2. Create models.SigningRequest struct
+3. Call s.manager.Sign(ctx, providerName, providerConfig, signingRequest)
+4. Encode signature bytes to base64 for JSON response
+
+ERROR HANDLING:
+- 400 Bad Request: Invalid base64 data, unsupported algorithm
+- 404 Not Found: Key doesn't exist
+- 500 Internal Server Error: Signing operation failed
+
+
+4. KEY LISTING ENDPOINT - /api/v1/keys (GET)
+============================================
+
+CURRENT STATUS: Returns empty array
+LOCATION: cmd/server/main.go:392 - handleListKeys()
+
+EXPECTED OUTPUT (JSON):
+{
+  "keys": [
+    {
+      "id": "key-uuid-1",
+      "name": "key-name-1",
+      "key_type": "RSA", 
+      "key_size": 2048,
+      "state": "active",
+      "created_at": "2025-10-10T05:45:33Z"
+    }
+  ],
+  "count": 1
+}
+
+IMPLEMENTATION STEPS:
+1. Extract provider from query params or use default
+2. Call s.manager.ListKeys(ctx, providerName, providerConfig)
+3. Convert []*models.KeyHandle to JSON array format
+
+ERROR HANDLING:
+- 500 Internal Server Error: HSM provider errors
+
+
+5. KEY DELETION ENDPOINT - /api/v1/keys/{keyId} (DELETE)  
+========================================================
+
+CURRENT STATUS: Returns placeholder success
+LOCATION: cmd/server/main.go:413 - handleDeleteKey()
+
+EXPECTED OUTPUT (JSON):
+{
+  "key_id": "deleted-key-uuid",
+  "status": "deleted",
+  "deleted_at": "2025-10-10T05:45:33Z"
+}
+
+IMPLEMENTATION STEPS:
+1. Extract keyId from URL path
+2. Call s.manager.DeleteKey(ctx, providerName, providerConfig, keyId)  # May need to add this method
+3. Return success confirmation
+
+ERROR HANDLING:
+- 404 Not Found: Key doesn't exist
+- 500 Internal Server Error: Deletion failed
+
+
+PROVIDER CONFIGURATION HANDLING:
+================================
+
+For all endpoints, the provider configuration needs to be determined:
+
+OPTION 1 - Query Parameter:
+/api/v1/keys?provider=mock-hsm
+
+OPTION 2 - URL Path:
+/api/v1/providers/{provider}/keys
+
+CURRENT STRUCTURE: Uses query parameter approach
+RECOMMENDED: Add provider detection logic in each handler:
+
+```go
+providerName := r.URL.Query().Get("provider")
+if providerName == "" {
+    providerName = "mock-hsm" // default
+}
+
+providerConfig := map[string]interface{}{} // Can be extended for provider-specific config
+```
+
+
+TESTING VALIDATION:
+===================
+
+After implementation, these test scenarios should pass:
+
+1. KeyGrid PKI Integration Test:
+   cd /Users/jimmy/dev/cf/keygridpki
+   go test -v ./test/integration/hsm_integration_test.go
+
+2. HSM Framework Test:
+   go test -v ./test/integration/hsm_framework_test.go
+
+Expected results:
+- Key generation: Creates real keys, returns proper JSON
+- Public key retrieval: Returns valid PEM-encoded public keys
+- Signing: Produces verifiable signatures
+- All HTTP status codes correct (200, 201, 400, 404, 500)
+
+
+ADDITIONAL REQUIREMENTS:
+========================
+
+1. ADD MISSING ROUTE:
+In cmd/server/main.go setupRoutes(), add:
+api.HandleFunc("/keys/{keyId}/public", s.handleGetPublicKey).Methods("GET")
+
+2. IMPLEMENT handleGetPublicKey() method
+
+3. UPDATE ERROR HANDLING:
+Use consistent error response format:
+```json
+{
+  "error": "Error message",
+  "status": 404,
+  "timestamp": "2025-10-10T05:45:33Z",
+  "details": "Additional error context"
+}
+```
+
+4. ADD PROPER LOGGING:
+Log all operations with timing and result status
+
+5. VALIDATE INPUT:
+Check required fields, validate key types/sizes, sanitize inputs
+
+
+ARCHITECTURE NOTES:
+===================
+
+The HSM Manager (internal/core/manager.go) already implements:
+- GenerateKey() - ✅ Working
+- Sign() - ✅ Working  
+- GetPublicKey() - ✅ Working
+- ListKeys() - ✅ Working
+
+HTTP handlers just need to:
+1. Parse HTTP requests
+2. Call manager methods
+3. Format HTTP responses
+4. Handle errors properly
+
+INTEGRATION WITH KeyGrid PKI:
+=============================
+
+The KeyGrid PKI integration tests expect these specific behaviors:
+- POST /api/v1/keys creates key and returns full KeyHandle JSON
+- GET /api/v1/keys/{keyId}/public returns PEM-encoded public key
+- POST /api/v1/keys/{keyId}/sign accepts base64 data, returns base64 signature
+- All responses use consistent JSON formatting
+- HTTP status codes follow REST conventions
+
+PRIORITY ORDER:
+1. Key generation (POST /api/v1/keys) - CRITICAL
+2. Public key retrieval (GET /api/v1/keys/{keyId}/public) - CRITICAL
+3. Signing (POST /api/v1/keys/{keyId}/sign) - CRITICAL
+4. Key listing (GET /api/v1/keys) - NICE TO HAVE
+5. Key deletion (DELETE /api/v1/keys/{keyId}) - NICE TO HAVE
+
+COMPLETION CRITERIA:
+- All HSM integration tests pass
+- Real cryptographic operations work
+- Proper error handling implemented
+- Consistent JSON response formatting
+- HTTP status codes follow REST standards
