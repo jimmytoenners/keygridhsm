@@ -21,6 +21,8 @@
 - **Developer Friendly**: Mock implementations and comprehensive testing tools
 
 ### 🔐 HSM Providers
+- **AWS KMS**: Managed key service with enterprise compliance and high availability
+- **AWS CloudHSM**: Dedicated FIPS 140-2 Level 3 hardware security modules
 - **Azure KeyVault**: Production-ready integration with enterprise authentication
 - **Custom Storage**: Multi-backend storage (filesystem, database, memory) with encryption
 - **Mock HSM**: Development-focused mock with testing scenarios and persistence
@@ -47,6 +49,7 @@
 ### Prerequisites
 - Go 1.23 or later
 - Docker (optional, for containerized deployment)
+- AWS KMS/CloudHSM (optional, for AWS providers)
 - Azure KeyVault (optional, for Azure provider)
 
 ### Installation
@@ -104,6 +107,7 @@ KeyGrid HSM includes comprehensive enterprise-grade documentation and developer 
 
 ### 📚 **Core Documentation**
 - **[Enterprise Readiness Guide](docs/ENTERPRISE_READINESS_COMPLETE.md)** - Complete milestone overview
+- **[AWS KMS Quick Start](docs/AWS_KMS_QUICKSTART.md)** - 🎆 **10-minute setup guide for AWS KMS**
 - **[Developer Integration Guide](docs/DEVELOPER_GUIDE.md)** - Comprehensive integration documentation (785 lines)
 - **[Security Documentation](docs/SECURITY.md)** - Enterprise security guidance (763 lines)
 - **[OpenAPI Specification](docs/openapi.yaml)** - Complete REST API documentation (853 lines)
@@ -144,6 +148,24 @@ providers:
       persistent_storage: false
       max_keys: 1000
 
+  # AWS KMS for production
+  aws-kms:
+    enabled: true
+    config:
+      region: "us-west-2"
+      use_instance_role: true  # For EC2 instances
+      # Or use access keys:
+      # access_key_id: "your-access-key"
+      # secret_access_key: "your-secret-key"
+      
+  # AWS CloudHSM for dedicated hardware security
+  aws-cloudhsm:
+    enabled: false  # Requires dedicated cluster setup
+    config:
+      region: "us-west-2"
+      cluster_id: "cluster-123456789abcdef0"
+      use_instance_role: true
+      
   # Azure KeyVault for production
   azure-keyvault:
     enabled: true
@@ -180,6 +202,12 @@ metrics:
 KEYGRID_PORT=8080
 KEYGRID_HOST=0.0.0.0
 KEYGRID_LOG_LEVEL=info
+
+# AWS KMS/CloudHSM
+AWS_REGION=us-west-2
+AWS_ACCESS_KEY_ID=your-access-key
+AWS_SECRET_ACCESS_KEY=your-secret-key
+AWS_CLOUDHSM_CLUSTER_ID=cluster-123456789abcdef0
 
 # Azure KeyVault
 AZURE_KEYVAULT_URL=https://your-vault.vault.azure.net/

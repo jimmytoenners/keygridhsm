@@ -46,6 +46,21 @@ providers:
     config:
       vault_url_env: "AZURE_KEYVAULT_URL"
       use_cli: true  # Use Azure CLI for development
+      
+  # AWS KMS - disabled by default for development
+  aws-kms:
+    enabled: false  # Enable only when AWS credentials are configured
+    config:
+      region: "us-west-2"  # Default region
+      profile: "default"   # Use default AWS profile for development
+      
+  # AWS CloudHSM - disabled by default for development (requires dedicated cluster)
+  aws-cloudhsm:
+    enabled: false  # Enable only when CloudHSM cluster is available
+    config:
+      region: "us-west-2"        # Default region
+      cluster_id: "cluster-xxxxx" # Replace with actual cluster ID
+      profile: "default"          # Use default AWS profile for development
 
 # Logging Configuration
 logging:

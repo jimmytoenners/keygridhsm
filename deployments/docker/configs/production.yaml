@@ -65,6 +65,29 @@ providers:
       client_id_env: "AZURE_CLIENT_ID"
       client_secret_env: "AZURE_CLIENT_SECRET"
       tenant_id_env: "AZURE_TENANT_ID"
+      
+  # AWS KMS Provider
+  aws-kms:
+    enabled: false  # Enable only when AWS credentials are available
+    config:
+      region_env: "AWS_REGION"  # Read from environment
+      # Authentication options:
+      use_instance_role: true  # Use EC2 instance role
+      # Or use access keys:
+      access_key_id_env: "AWS_ACCESS_KEY_ID"
+      secret_access_key_env: "AWS_SECRET_ACCESS_KEY"
+      session_token_env: "AWS_SESSION_TOKEN"  # For temporary credentials
+      
+  # AWS CloudHSM Provider
+  aws-cloudhsm:
+    enabled: false  # Enable only when CloudHSM cluster is available
+    config:
+      region_env: "AWS_REGION"           # Read from environment
+      cluster_id_env: "AWS_CLOUDHSM_CLUSTER_ID"  # CloudHSM cluster ID
+      # Authentication same as AWS KMS
+      use_instance_role: true
+      # Note: CloudHSM requires additional PKCS#11 client setup
+      # and proper network connectivity to the HSM cluster
 
 # Logging Configuration
 logging:
