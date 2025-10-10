@@ -306,6 +306,11 @@ func (c *MockHSMClient) GenerateKey(ctx context.Context, spec models.KeySpec, na
 
 	c.simulateLatency()
 
+	// Validate key specification
+	if err := c.validateKeySpec(spec); err != nil {
+		return nil, err
+	}
+
 	// Check key limit
 	if c.config.MaxKeys > 0 && len(c.keys) >= c.config.MaxKeys {
 		return nil, models.NewHSMError(models.ErrCodeQuotaExceeded,
@@ -712,38 +717,156 @@ func (c *MockHSMClient) generateKeyPair(spec models.KeySpec) (crypto.PrivateKey,
 	return cryptoutils.GenerateKeyPair(spec)
 }
 
+// validateKeySpec validates the key specification
+func (c *MockHSMClient) validateKeySpec(spec models.KeySpec) error {
+	// Validate key type
+	switch spec.KeyType {
+	case models.KeyTypeRSA:
+		// RSA key size validation
+		if spec.KeySize < 2048 || spec.KeySize > 4096 {
+			return models.NewHSMError(models.ErrCodeInvalidKeySpec,
+				fmt.Sprintf("Invalid RSA key size: %d. Must be between 2048 and 4096", spec.KeySize)).
+				WithProvider(MockHSMProviderName)
+		}
+		// RSA key sizes must be multiples of 1024 for this mock
+		if spec.KeySize%1024 != 0 {
+			return models.NewHSMError(models.ErrCodeInvalidKeySpec,
+				fmt.Sprintf("Invalid RSA key size: %d. Must be multiple of 1024", spec.KeySize)).
+				WithProvider(MockHSMProviderName)
+		}
+	case models.KeyTypeECDSA:
+		// ECDSA curve validation
+		switch spec.KeySize {
+		case 256, 384, 521: // P-256, P-384, P-521
+			// Valid ECDSA key sizes
+		default:
+			return models.NewHSMError(models.ErrCodeInvalidKeySpec,
+				fmt.Sprintf("Invalid ECDSA key size: %d. Must be 256, 384, or 521", spec.KeySize)).
+				WithProvider(MockHSMProviderName)
+		}
+	case models.KeyTypeEd25519:
+		// Ed25519 has fixed key size
+		if spec.KeySize != 256 {
+			return models.NewHSMError(models.ErrCodeInvalidKeySpec,
+				fmt.Sprintf("Invalid Ed25519 key size: %d. Must be 256", spec.KeySize)).
+				WithProvider(MockHSMProviderName)
+		}
+	default:
+		return models.NewHSMError(models.ErrCodeInvalidKeySpec,
+			fmt.Sprintf("Unsupported key type: %s", spec.KeyType)).
+			WithProvider(MockHSMProviderName)
+	}
+
+	// Validate algorithm
+	switch spec.Algorithm {
+	case "RS256", "RS384", "RS512", "RSA-PSS":
+		if spec.KeyType != models.KeyTypeRSA {
+			return models.NewHSMError(models.ErrCodeInvalidKeySpec,
+				fmt.Sprintf("Algorithm %s requires RSA key type", spec.Algorithm)).
+				WithProvider(MockHSMProviderName)
+		}
+	case "ES256", "ES384", "ES512":
+		if spec.KeyType != models.KeyTypeECDSA {
+			return models.NewHSMError(models.ErrCodeInvalidKeySpec,
+				fmt.Sprintf("Algorithm %s requires ECDSA key type", spec.Algorithm)).
+				WithProvider(MockHSMProviderName)
+		}
+	case "EdDSA":
+		if spec.KeyType != models.KeyTypeEd25519 {
+			return models.NewHSMError(models.ErrCodeInvalidKeySpec,
+				fmt.Sprintf("Algorithm %s requires Ed25519 key type", spec.Algorithm)).
+				WithProvider(MockHSMProviderName)
+		}
+	default:
+		return models.NewHSMError(models.ErrCodeInvalidAlgorithm,
+			fmt.Sprintf("Unsupported algorithm: %s", spec.Algorithm)).
+			WithProvider(MockHSMProviderName)
+	}
+
+	// Validate usage
+	if len(spec.Usage) == 0 {
+		return models.NewHSMError(models.ErrCodeInvalidKeySpec,
+			"Key usage must be specified").
+			WithProvider(MockHSMProviderName)
+	}
+
+	return nil
+}
+
 func (c *MockHSMClient) performSigning(privateKey crypto.PrivateKey, data []byte, algorithm string) ([]byte, error) {
-	hash := sha256.Sum256(data)
+	// The data might already be a hash digest from crypto.Signer interface
+	// For crypto.Signer compliance, we assume data is already a proper digest
+	var hash []byte
+	
+	// Check if data looks like a hash (32 bytes for SHA-256)
+	if len(data) == 32 {
+		// Assume this is already a SHA-256 hash digest from crypto.Signer
+		hash = data
+	} else {
+		// For raw data, compute hash
+		hashSum := sha256.Sum256(data)
+		hash = hashSum[:]
+	}
 
 	switch key := privateKey.(type) {
 	case *rsa.PrivateKey:
-		return rsa.SignPSS(rand.Reader, key, crypto.SHA256, hash[:], nil)
+		// Use PKCS1v15 for RS256, PSS for RSA-PSS
+		if algorithm == "RSA-PSS" {
+			return rsa.SignPSS(rand.Reader, key, crypto.SHA256, hash, nil)
+		} else {
+			// Default to PKCS1v15 for RS256
+			return rsa.SignPKCS1v15(rand.Reader, key, crypto.SHA256, hash)
+		}
 	case *ecdsa.PrivateKey:
-		r, s, err := ecdsa.Sign(rand.Reader, key, hash[:])
+		r, s, err := ecdsa.Sign(rand.Reader, key, hash)
 		if err != nil {
 			return nil, err
 		}
 		return asn1.Marshal(struct{ R, S *big.Int }{r, s})
 	case ed25519.PrivateKey:
-		return ed25519.Sign(key, data), nil
+		// Ed25519 signs the original data, not the hash
+		if len(data) == 32 {
+			// If we received a hash, we need to sign it directly
+			return ed25519.Sign(key, data), nil
+		} else {
+			return ed25519.Sign(key, data), nil
+		}
 	default:
 		return nil, fmt.Errorf("unsupported private key type")
 	}
 }
 
 func (c *MockHSMClient) performVerification(publicKey crypto.PublicKey, data, signature []byte, algorithm string) (bool, error) {
-	hash := sha256.Sum256(data)
+	// Handle both raw data and pre-computed hashes like the signing method
+	var hash []byte
+	
+	// Check if data looks like a hash (32 bytes for SHA-256)
+	if len(data) == 32 {
+		// Assume this is already a SHA-256 hash digest
+		hash = data
+	} else {
+		// For raw data, compute hash
+		hashSum := sha256.Sum256(data)
+		hash = hashSum[:]
+	}
 
 	switch key := publicKey.(type) {
 	case *rsa.PublicKey:
-		err := rsa.VerifyPSS(key, crypto.SHA256, hash[:], signature, nil)
-		return err == nil, nil
+		// Use PKCS1v15 for RS256, PSS for RSA-PSS
+		if algorithm == "RSA-PSS" {
+			err := rsa.VerifyPSS(key, crypto.SHA256, hash, signature, nil)
+			return err == nil, nil
+		} else {
+			// Default to PKCS1v15 for RS256
+			err := rsa.VerifyPKCS1v15(key, crypto.SHA256, hash, signature)
+			return err == nil, nil
+		}
 	case *ecdsa.PublicKey:
 		var sig struct{ R, S *big.Int }
 		if _, err := asn1.Unmarshal(signature, &sig); err != nil {
 			return false, err
 		}
-		return ecdsa.Verify(key, hash[:], sig.R, sig.S), nil
+		return ecdsa.Verify(key, hash, sig.R, sig.S), nil
 	case ed25519.PublicKey:
 		return ed25519.Verify(key, data, signature), nil
 	default:
