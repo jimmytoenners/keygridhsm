@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/kms"
 	"github.com/aws/aws-sdk-go-v2/service/kms/types"
@@ -300,8 +301,8 @@ func (c *AWSKMSClient) GetKey(ctx context.Context, keyHandle string) (*models.Ke
 	}
 
 	// Convert AWS result to KeyGrid KeyHandle
-	keyHandle := c.convertAWSKeyToHandle(*result.KeyMetadata)
-	return keyHandle, nil
+	keyHandleResult := c.convertAWSKeyToHandle(*result.KeyMetadata)
+	return keyHandleResult, nil
 }
 
 func (c *AWSKMSClient) ListKeys(ctx context.Context) ([]*models.KeyHandle, error) {
@@ -494,7 +495,7 @@ func (c *AWSKMSClient) Verify(ctx context.Context, keyHandle string, data, signa
 func (c *AWSKMSClient) Encrypt(ctx context.Context, request models.EncryptionRequest) (*models.EncryptionResponse, error) {
 	input := &kms.EncryptInput{
 		KeyId:     ptrString(request.KeyHandle),
-		Plaintext: request.Data,
+		Plaintext: request.Plaintext,
 	}
 
 	result, err := c.client.Encrypt(ctx, input)
@@ -506,9 +507,9 @@ func (c *AWSKMSClient) Encrypt(ctx context.Context, request models.EncryptionReq
 	}
 
 	return &models.EncryptionResponse{
-		CiphertextData: result.CiphertextBlob,
-		Algorithm:      "AWS-KMS",
-		KeyID:          request.KeyHandle,
+		Ciphertext: result.CiphertextBlob,
+		Algorithm:  "AWS-KMS",
+		KeyID:      request.KeyHandle,
 		Metadata: map[string]string{
 			"provider": AWSKMSProviderName,
 			"region":   c.region,
@@ -518,7 +519,7 @@ func (c *AWSKMSClient) Encrypt(ctx context.Context, request models.EncryptionReq
 
 func (c *AWSKMSClient) Decrypt(ctx context.Context, request models.DecryptionRequest) (*models.DecryptionResponse, error) {
 	input := &kms.DecryptInput{
-		CiphertextBlob: request.CiphertextData,
+		CiphertextBlob: request.Ciphertext,
 		KeyId:          ptrString(request.KeyHandle),
 	}
 
@@ -531,9 +532,9 @@ func (c *AWSKMSClient) Decrypt(ctx context.Context, request models.DecryptionReq
 	}
 
 	return &models.DecryptionResponse{
-		PlaintextData: result.Plaintext,
-		Algorithm:     "AWS-KMS",
-		KeyID:         request.KeyHandle,
+		Plaintext: result.Plaintext,
+		Algorithm: "AWS-KMS",
+		KeyID:     request.KeyHandle,
 		Metadata: map[string]string{
 			"provider": AWSKMSProviderName,
 			"region":   c.region,
@@ -598,7 +599,7 @@ func (c *AWSKMSClient) Close() error {
 }
 
 // Helper functions
-func (p *AWSKMSProvider) loadAWSConfig(ctx context.Context, awsConfig *AWSKMSConfig) (config.Config, error) {
+func (p *AWSKMSProvider) loadAWSConfig(ctx context.Context, awsConfig *AWSKMSConfig) (aws.Config, error) {
 	var opts []func(*config.LoadOptions) error
 
 	opts = append(opts, config.WithRegion(awsConfig.Region))
@@ -755,7 +756,7 @@ func (c *AWSKMSClient) convertAWSKeyToHandle(metadata types.KeyMetadata) *models
 	case types.KeyStateDisabled:
 		state = models.KeyStateInactive
 	case types.KeyStatePendingDeletion:
-		state = models.KeyStatePendingDeletion
+		state = models.KeyStateDestroyed
 	default:
 		state = models.KeyStateActive
 	}

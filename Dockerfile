@@ -2,7 +2,7 @@
 # This Dockerfile builds a secure, minimal container image for the KeyGrid HSM service
 
 # Build stage
-FROM golang:1.21-alpine AS builder
+FROM golang:1.23-alpine AS builder
 
 # Install necessary packages for building
 RUN apk add --no-cache \
@@ -32,10 +32,8 @@ RUN chown -R builder:builder /app
 USER builder
 
 # Build the binary with security flags
-RUN CGO_ENABLED=1 GOOS=linux GOARCH=amd64 go build \
-    -a -installsuffix cgo \
-    -ldflags '-w -s -extldflags "-static"' \
-    -tags netgo \
+RUN CGO_ENABLED=1 go build \
+    -ldflags '-w -s' \
     -o keygrid-hsm \
     ./cmd/server/main.go
 

@@ -5,14 +5,11 @@ package providers
 import (
 	"context"
 	"crypto"
-	"crypto/x509"
-	"fmt"
-	"strings"
 	"time"
 
+	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/cloudhsmv2"
-	"github.com/aws/aws-sdk-go-v2/service/cloudhsmv2/types"
 	"github.com/sirupsen/logrus"
 
 	"github.com/jimmy/keygridhsm/pkg/models"
@@ -271,6 +268,13 @@ func (c *AWSCloudHSMClient) DeactivateKey(ctx context.Context, keyHandle string)
 		WithOperation("deactivate_key")
 }
 
+func (c *AWSCloudHSMClient) SetKeyExpiration(ctx context.Context, keyHandle string, expiration time.Time) error {
+	return models.NewHSMError(models.ErrCodeInvalidInput,
+		"AWS CloudHSM key expiration setting requires proper PKCS#11 client setup").
+		WithProvider(AWSCloudHSMProviderName).
+		WithOperation("set_key_expiration")
+}
+
 func (c *AWSCloudHSMClient) GetPublicKey(ctx context.Context, keyHandle string) (crypto.PublicKey, error) {
 	return nil, models.NewHSMError(models.ErrCodeInvalidInput,
 		"AWS CloudHSM public key operations require proper PKCS#11 client setup").
@@ -278,50 +282,55 @@ func (c *AWSCloudHSMClient) GetPublicKey(ctx context.Context, keyHandle string) 
 		WithOperation("get_public_key")
 }
 
-func (c *AWSCloudHSMClient) Sign(ctx context.Context, keyHandle string, digest []byte, algorithm string) ([]byte, error) {
+func (c *AWSCloudHSMClient) Sign(ctx context.Context, request models.SigningRequest) (*models.SigningResponse, error) {
 	return nil, models.NewHSMError(models.ErrCodeInvalidInput,
 		"AWS CloudHSM signing operations require proper PKCS#11 client setup").
 		WithProvider(AWSCloudHSMProviderName).
 		WithOperation("sign")
 }
 
-func (c *AWSCloudHSMClient) Verify(ctx context.Context, keyHandle string, digest, signature []byte, algorithm string) (bool, error) {
+func (c *AWSCloudHSMClient) Verify(ctx context.Context, keyHandle string, data, signature []byte, algorithm string) (bool, error) {
 	return false, models.NewHSMError(models.ErrCodeInvalidInput,
 		"AWS CloudHSM verification operations require proper PKCS#11 client setup").
 		WithProvider(AWSCloudHSMProviderName).
 		WithOperation("verify")
 }
 
-func (c *AWSCloudHSMClient) Encrypt(ctx context.Context, keyHandle string, plaintext []byte) ([]byte, error) {
+func (c *AWSCloudHSMClient) Encrypt(ctx context.Context, request models.EncryptionRequest) (*models.EncryptionResponse, error) {
 	return nil, models.NewHSMError(models.ErrCodeInvalidInput,
 		"AWS CloudHSM encryption operations require proper PKCS#11 client setup").
 		WithProvider(AWSCloudHSMProviderName).
 		WithOperation("encrypt")
 }
 
-func (c *AWSCloudHSMClient) Decrypt(ctx context.Context, keyHandle string, ciphertext []byte) ([]byte, error) {
+func (c *AWSCloudHSMClient) Decrypt(ctx context.Context, request models.DecryptionRequest) (*models.DecryptionResponse, error) {
 	return nil, models.NewHSMError(models.ErrCodeInvalidInput,
 		"AWS CloudHSM decryption operations require proper PKCS#11 client setup").
 		WithProvider(AWSCloudHSMProviderName).
 		WithOperation("decrypt")
 }
 
-func (c *AWSCloudHSMClient) WrapKey(ctx context.Context, keyHandle, wrappingKeyHandle string) ([]byte, error) {
+func (c *AWSCloudHSMClient) WrapKey(ctx context.Context, request models.KeyWrapRequest) (*models.KeyWrapResponse, error) {
 	return nil, models.NewHSMError(models.ErrCodeInvalidInput,
 		"AWS CloudHSM key wrapping operations require proper PKCS#11 client setup").
 		WithProvider(AWSCloudHSMProviderName).
 		WithOperation("wrap_key")
 }
 
-func (c *AWSCloudHSMClient) UnwrapKey(ctx context.Context, wrappedKey []byte, wrappingKeyHandle string) ([]byte, error) {
+func (c *AWSCloudHSMClient) UnwrapKey(ctx context.Context, request models.KeyUnwrapRequest) (*models.KeyUnwrapResponse, error) {
 	return nil, models.NewHSMError(models.ErrCodeInvalidInput,
 		"AWS CloudHSM key unwrapping operations require proper PKCS#11 client setup").
 		WithProvider(AWSCloudHSMProviderName).
 		WithOperation("unwrap_key")
 }
 
+func (c *AWSCloudHSMClient) Close() error {
+	// AWS CloudHSM client doesn't need explicit closing
+	return nil
+}
+
 // Helper functions
-func (p *AWSCloudHSMProvider) loadAWSConfig(ctx context.Context, awsConfig *AWSCloudHSMConfig) (config.Config, error) {
+func (p *AWSCloudHSMProvider) loadAWSConfig(ctx context.Context, awsConfig *AWSCloudHSMConfig) (aws.Config, error) {
 	var opts []func(*config.LoadOptions) error
 
 	opts = append(opts, config.WithRegion(awsConfig.Region))
